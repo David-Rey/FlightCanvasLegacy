@@ -187,7 +187,7 @@ class Trimpoint:
         lateral_rom = self.lateral_ROM_quaternion(state)
 
         # Pitch
-        pitch_ref = np.array([16, 0, 0, 0])  # [vx, vz, pitch_rate, pitch]
+        pitch_ref = np.array([0, 0, 0, 0])  # [vx, vz, pitch_rate, pitch]
         #pitch_ref = -np.deg2rad(3)
         pitch_error = pitch_ref - pitch_rom
         #rel_pitch_control = self.pitch_controller.update(pitch_error)
@@ -230,7 +230,7 @@ class Trimpoint:
             Mx = M[i, :, 0]
             My = M[i, :, 1]
             Mz = M[i, :, 2]
-            ax.scatter(Mx, My, Mz)
+            ax.plot(Mx, My, Mz)
             ax.set_xlabel('Mx (roll)')
             ax.set_ylabel('My (pitch)')
             ax.set_zlabel('Mz (yaw)')

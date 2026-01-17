@@ -71,13 +71,17 @@ class VehicleDynamics:
             self,
             state: Union[np.ndarray, ca.MX],
             deflections_true: Union[np.ndarray, ca.MX],
-            g: Union[np.ndarray, ca.MX]) \
-            -> Tuple[Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX]]:
+            g: Union[np.ndarray, ca.MX],
+            F_dist: Union[np.ndarray, ca.MX],
+            M_dist: Union[np.ndarray, ca.MX]
+        ) -> Tuple[Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX]]:
         """
         Calculates the rigid body derivatives given a state and deflections
         param state: The state to calculate the derivatives for
         param deflections_true: The true deflection of the flaps
         param g: The gravitational force acting on the body
+        param F_dist: Force disturbances in body frame
+        param M_dist: Moment disturbances in body frame
         :return: The rigid body derivatives
         """
 
@@ -103,11 +107,14 @@ class VehicleDynamics:
             omega_matrix_func = utils.omega
 
         # Calculate external forces and moments as function
-        F_B, M_B = self.compute_forces_and_moments(state, deflections_true)
+        F_B_aero, M_B_aero = self.compute_forces_and_moments(state, deflections_true)
+
+        # Sum Aero and disturbances
+        F_B = F_B_aero + F_dist
+        M_B = M_B_aero + M_dist
 
         # compute direction cosine matrix
         C_B_I = dir_cosine_func(quat)   # INERTIAL frame to BODY frame.
-        #C_I_B = C_B_I.T                 # BODY frame to INERTIAL frame.
 
         # Rotate Gravity into Body Frame
         g_body = C_B_I @ g
@@ -143,6 +150,10 @@ class VehicleDynamics:
         quat = ca.MX.sym('quat', 4)
         omega_B = ca.MX.sym('omega_B', 3)
 
+        # Disturbances
+        F_dist = ca.MX.sym('F_dist', 3)
+        M_dist = ca.MX.sym('M_dist', 3)
+
         # Define Symbolic Controls
         control_deflections = ca.MX.sym('control_deflections', self.num_actuator_inputs_comp)
         g = ca.MX.sym('g', 3)
@@ -151,20 +162,22 @@ class VehicleDynamics:
         state = ca.vertcat(pos_I, vel_I, quat, omega_B)
 
         # calculate x_dot
-        v_dot, omega_dot, quat_dot = self._calculate_rigid_body_derivatives(state, control_deflections, g)
+        v_dot, omega_dot, quat_dot = self._calculate_rigid_body_derivatives(state, control_deflections, g, F_dist, M_dist)
 
         state_dot = ca.vertcat(vel_I, v_dot, quat_dot, omega_dot)
 
         # create casadi function of dynamics
-        self.full_dynamics = Function('dynamics', [state, control_deflections, g], [state_dot])
+        self.full_dynamics = Function('dynamics', [state, control_deflections, g, F_dist, M_dist], [state_dot])
 
     def dynamics(self, state: np.ndarray, control_inputs: np.ndarray, gravity=True):
         if self.full_dynamics is None:
             self.create_casadi_model()
+        F_dist = np.array([0, 0, 0])
+        M_dist = np.array([0, 0, 0])
         if gravity:
-            return self.full_dynamics(state, control_inputs, np.array([0, 0, -9.81]))
+            return self.full_dynamics(state, control_inputs, np.array([0, 0, -9.81]), F_dist, M_dist)
         else:
-            return self.full_dynamics(state, control_inputs, np.array([0, 0, 0]))
+            return self.full_dynamics(state, control_inputs, np.array([0, 0, 0]), F_dist, M_dist)
 
     def create_allocation_matrix(self) -> np.ndarray:
         """

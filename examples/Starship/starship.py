@@ -5,11 +5,9 @@ from scipy.interpolate import splprep, splev
 from FlightCanvas.vehicle.aero_vehicle import AeroVehicle
 from FlightCanvas.components.aero_fuselage import AeroFuselage
 from FlightCanvas.components.aero_wing import create_planar_wing_pair, AeroWing
-from FlightCanvas.OLD.actuators.actuators import DirectDerivative
 from FlightCanvas.Flight.flight import Flight
 from FlightCanvas.analysis.log import Log
 from FlightCanvas.analysis.vehicle_visualizer import VehicleVisualizer
-from FlightCanvas.analysis.anlaysis import Analysis
 from examples.Starship.starship_trimpoint import Trimpoint
 from FlightCanvas.vehicle.actuator_dynamics import Actuator
 
@@ -106,12 +104,8 @@ class Starship:
 
         # Access the moment value and update it within the new list
         F_b_list[1] = F_b_list[1] * 0.50
-        #F_b_list[0] = F_b_list[0] * 0
-        #F_b_list[2] = F_b_list[2] * 0
-
 
         for i in [1, 3]:
-        #for i in []:
             F_b_temp = list(self.vehicle.components[i].buildup_manager.asb_data_static["F_b"])
             M_b_temp = list(self.vehicle.components[i].buildup_manager.asb_data_static["M_b"])
             F_b_temp[0] = F_b_temp[0] * 0
@@ -120,13 +114,6 @@ class Starship:
             M_b_temp[2] = M_b_temp[2] * 0
             self.vehicle.components[i].buildup_manager.asb_data_static["F_b"] = F_b_temp
             self.vehicle.components[i].buildup_manager.asb_data_static["M_b"] = M_b_temp
-
-
-
-        #F_b_temp = list(self.vehicle.components[2].buildup_manager.asb_data_static["F_b"])
-        #F_b_temp[0] = F_b_temp[0] * 0
-        #F_b_temp[1] = F_b_temp[1] * 0
-        #self.vehicle.components[1].buildup_manager.asb_data_static["F_b"] = F_b_temp
 
         # Reassign the updated list back to the dictionary
         self.vehicle.components[0].buildup_manager.asb_data_static["M_b"] = F_b_list
@@ -285,6 +272,7 @@ class Starship:
         #trim.plot_pz_with_feedback()
 
         inital_state = trim.x_star
+        #trim.draw_wrench_space()
         #inital_state = trim.u_star
         #starship_control = StarshipController(sys)
         #starship_control.compute_lqr()
@@ -297,12 +285,12 @@ class Starship:
         #trim.draw_wrench_space()
         flight.run_sim(inital_state, trim, log)
 
-        analysis = Analysis(log)
-        analysis.generate_control_plot()
-        analysis.generate_velocity_plot(include_vz=False)
+        #analysis = Analysis(log)
+        #analysis.generate_control_plot()
+        #analysis.generate_velocity_plot(include_vz=False)
         #analysis.generate_position_plot()
-        analysis.generate_euler_angle_plot()
-        analysis.generate_angular_velocity_plot()
+        #analysis.generate_euler_angle_plot()
+        #analysis.generate_angular_velocity_plot()
         #analysis.generate_quat_norm_plot()
         #analysis.generate_angle_of_attack_plot()
         #analysis.generate_true_deflections_plot()

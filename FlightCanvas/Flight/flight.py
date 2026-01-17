@@ -42,11 +42,11 @@ class Flight:
             aero_vehicle_dyn = lambda state: self.aero_vehicle.dynamics(state, control)
 
             # Add Noise into simulation
-            noise_values = vnoiser.noise1(time) * 0.004
-            state[11] = state[11] + noise_values
+            #noise_values = vnoiser.noise1(time) * 0.004
+            #state[11] = state[11] + noise_values
 
-            noise_values = vnoiser.noise1(time, base=2) * 0.001
-            state[12] = state[12] + noise_values
+            #noise_values = vnoiser.noise1(time, base=2) * 0.001
+            #state[12] = state[12] + noise_values
 
             state = utils.rk4(aero_vehicle_dyn, state, self.dt)
             states_dot = self.aero_vehicle.dynamics(state, control)
