@@ -1,4 +1,3 @@
-
 from FlightCanvas.vehicle.aero_vehicle import AeroVehicle
 import pyvista as pv
 from pyvista import Text, TextProperty
@@ -9,9 +8,8 @@ from FlightCanvas.analysis.log import Log
 
 
 class VehicleVisualizer:
-    def __init__(self, vehicle: AeroVehicle, log: Log):
+    def __init__(self, vehicle: AeroVehicle):
         self.vehicle = vehicle
-        self.log = log
 
         self.cg_sphere = None
 
@@ -23,8 +21,10 @@ class VehicleVisualizer:
         self.state_vec_text = None
 
         # Text display settings
-        self.text_prop = TextProperty(font_size=20, color='black', justification_horizontal='left', justification_vertical='top')
-        self.stage_text_prop = TextProperty(font_size=20, color='black', justification_horizontal='right', justification_vertical='top')
+        self.text_prop = TextProperty(font_size=20, color='black', justification_horizontal='left',
+                                      justification_vertical='top')
+        self.stage_text_prop = TextProperty(font_size=20, color='black', justification_horizontal='right',
+                                            justification_vertical='top')
 
     def init_text(self):
         """
@@ -138,10 +138,10 @@ class VehicleVisualizer:
         # add grid to animation
         self.pl.add_mesh(grid, color="white", show_edges=True, edge_color="black")
 
-    def generate_square_traj(self):
-        x_arr = self.log.states
-        u_arr = self.log.deflections
-        t_arr = self.log.time
+    def generate_square_traj(self, log: Log):
+        x_arr = log.states
+        u_arr = log.deflections
+        t_arr = log.time
 
         tf = t_arr[-1]
         hoops_per_sec = 3
@@ -156,12 +156,12 @@ class VehicleVisualizer:
             C_B_I = utils.dir_cosine_np(quat)
             pos = state[:3] + (C_B_I @ self.vehicle.xyz_ref)
 
-            normal = C_B_I @ np.array([0, 0 ,1])
+            normal = C_B_I @ np.array([0, 0, 1])
 
             square = self.create_square(pos, normal, 200, 200)
             self.pl.add_mesh(square, color='red', line_width=3)
 
-    def animate(self, debug=False, show_text=True, cam_distance=5, zoom=1, fps=60):
+    def animate(self, log: Log, debug=False, show_text=True, cam_distance=5, zoom=1, fps=60):
         """
         Animates the aerodynamic visuals for all FlightCanvas
         :param debug: If true, draws debug visuals
@@ -169,9 +169,9 @@ class VehicleVisualizer:
         :param cam_distance: The distance from the camera to center of mass
         :param fps: The frames per second of animation
         """
-        x_arr = self.log.states
-        u_arr = self.log.deflections
-        t_arr = self.log.time
+        x_arr = log.states
+        u_arr = log.deflections
+        t_arr = log.time
 
         if show_text:
             self.init_text()
@@ -207,7 +207,7 @@ class VehicleVisualizer:
                 self.draw_text(sim_time, state, control, true_deflection)
 
             # get center of mass position
-            pos = state[:3] # + (C_B_I @ self.vehicle.xyz_ref)
+            pos = state[:3]  # + (C_B_I @ self.vehicle.xyz_ref)
 
             # center camera focal point onto center of mass
             self.pl.camera.focal_point = pos
@@ -215,7 +215,6 @@ class VehicleVisualizer:
             # set camera location
             cam_offset = cam_distance * np.array([-1, 1, 0.6])
             self.pl.camera.position = pos + cam_offset
-
 
             # render and write the frame to the .mp4
             self.pl.render()
@@ -230,7 +229,6 @@ class VehicleVisualizer:
         """
         self.pl.add_axes_at_origin(labels_off=True)
         self.pl.show(**kwargs)
-
 
     @staticmethod
     def create_square(position: np.ndarray, normal: np.ndarray, width: float, height: float) -> pv.PolyData:

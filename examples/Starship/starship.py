@@ -41,6 +41,7 @@ class Starship:
         back_flaps = self._create_back_flaps()
 
         all_components = [body, *front_flaps, *back_flaps]
+        #all_components = [body, *front_flaps]
 
         # Define the starship_control mapping
         control_mapping = self._get_control_mapping()
@@ -48,7 +49,7 @@ class Starship:
         # Assemble the AeroVehicle
         self.vehicle = AeroVehicle(
             name="Starship",
-            xyz_ref=[self.cg_x, 0, 0],
+            xyz_ref=[0, 0, 0],
             components=all_components,
         )
 
@@ -138,7 +139,7 @@ class Starship:
         return AeroFuselage(
             name="Fuselage",
             xsecs=fuselage_xsecs,
-        ).translate([self.cg_x, 0, 0])
+        )
 
     def _create_front_flaps(self) -> List[AeroWing]:
         """
@@ -152,7 +153,7 @@ class Starship:
         return create_planar_wing_pair(
             name="Front Flap",
             xsecs=front_flap_xsecs,
-            translation=[5, 2.9, 0],
+            translation=[5 - self.cg_x, 2.9, 0],
             ref_direction=[1, 0.18, 0],
             control_pivot=[1, 0.18, 0],
             actuator_model=Actuator([1], [0.1, 1])
@@ -170,7 +171,7 @@ class Starship:
         return create_planar_wing_pair(
             name="Aft Flap",
             xsecs=back_flap_xsecs,
-            translation=[35, 4.5, 0],
+            translation=[35 - self.cg_x, 4.5, 0],
             ref_direction=[1, 0, 0],
             control_pivot=[1, 0, 0],
             actuator_model=Actuator([1], [0.1, 1])
@@ -271,7 +272,7 @@ class Starship:
 
         #trim.plot_pz_with_feedback()
 
-        inital_state = trim.x_star
+        initial_state = trim.x_star
         #trim.draw_wrench_space()
         #inital_state = trim.u_star
         #starship_control = StarshipController(sys)
@@ -279,11 +280,11 @@ class Starship:
         #inital_state, inital_control, _ = trim.get_trimpoint()
         #trim.get_LQR_control()
 
-        inital_state[2] = 800
-        inital_state[11] = 0.001
+        initial_state[2] = 800
+        initial_state[11] = 0.001
 
         #trim.draw_wrench_space()
-        flight.run_sim(inital_state, trim, log)
+        flight.run_sim(initial_state, trim, log)
 
         #analysis = Analysis(log)
         #analysis.generate_control_plot()
@@ -295,11 +296,13 @@ class Starship:
         #analysis.generate_angle_of_attack_plot()
         #analysis.generate_true_deflections_plot()
 
-        vv = VehicleVisualizer(self.vehicle, log)
-        vv.init_actors()
+        vv = VehicleVisualizer(self.vehicle)
+        vv.init_actors(opacity=0.6)
+        #vv.init_debug(size=2)
+        #vv.show()
         vv.add_grid()
         #vv.generate_square_traj()
-        vv.animate(cam_distance=80, zoom=1.5)
+        vv.animate(log, cam_distance=80, zoom=1.5)
 
 
 

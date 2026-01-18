@@ -158,11 +158,11 @@ class FinTabs:
 if __name__ == '__main__':
     rocket = FinTabs()
     #rocket.vehicle.load_buildup()
-    rocket.vehicle.init_vehicle_dynamics()
-    rocket.vehicle.compute_buildup()
+    #rocket.vehicle.init_vehicle_dynamics()
+    #rocket.vehicle.compute_buildup()
     #rocket.vehicle.save_buildup()
     #rocket.vehicle.save_buildup_fig()
-    rocket.test_dynamics()
+    #rocket.test_dynamics()
 
     vis = VehicleVisualizer(rocket.vehicle)
     vis.init_actors(color='lightblue', show_edges=False, opacity=1)

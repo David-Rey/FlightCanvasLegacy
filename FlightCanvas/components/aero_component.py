@@ -354,7 +354,8 @@ class AeroComponent(ABC):
         self.pv_actor = pl.add_mesh(self.mesh, **kwargs)
 
         # The user_matrix allows for efficient transformation of the actor
-        self.pv_actor.user_matrix = self.static_transform_matrix
+        self.pv_actor.user_matrix = self.get_transform(0)
+        print(1)
 
     def get_transform(self, rotation: Union[float, ca.MX] = 0) -> Union[np.ndarray, ca.MX]:
         """
@@ -390,7 +391,7 @@ class AeroComponent(ABC):
 
         # Static rotations based on component geometry (can be calculated with NumPy)
         transform_from_axis_vec = utils.rotation_matrix_from_vectors(x_vec, self.ref_direction)
-        transform_from_ref = utils.translation_matrix(self.xyz_ref - self.parent.xyz_ref)
+        transform_from_ref = utils.translation_matrix(self.xyz_ref)
 
         # Calculate the Dynamic Control Deflection Matrix
         # Use the dispatched functions to create a matrix of the correct type
