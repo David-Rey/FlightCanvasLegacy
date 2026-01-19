@@ -42,9 +42,6 @@ class Actuator(TransferFunction):
     def __init__(self, num: Union[np.ndarray, list], den: Union[np.ndarray, list]):
         super().__init__(num, den)
 
-        #self.u_hist = np.repeat(init_state, len(self.num[0][0]))
-        #self.y_hist = np.repeat(init_state, len(self.den[0][0]) - 1)
-
         self.u_hist = np.zeros(len(self.num[0][0]))
         self.y_hist = np.zeros(len(self.den[0][0]) - 1)
 

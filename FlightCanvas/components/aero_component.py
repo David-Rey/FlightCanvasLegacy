@@ -9,10 +9,11 @@ import pyvista as pv
 
 from FlightCanvas import utils
 from FlightCanvas.vehicle.actuator_dynamics import Actuator
+from FlightCanvas.components.component import Component
 from FlightCanvas.buildup.buildup_manager import BuildupManager
 
 
-class AeroComponent(ABC):
+class AeroComponent(Component, ABC):
     """
     An abstract base class for a single aerodynamic component of a vehicle, such as a wing, fuselage,
     or starship_control surface.
@@ -22,6 +23,7 @@ class AeroComponent(ABC):
             self,
             name: str,
             ref_direction: Union[np.ndarray, List[float]],
+            xyz_ref=np.array([0., 0., 0.]),
             control_pivot=None,
             is_prime=True,
             symmetric_comp: Optional['AeroComponent'] = None,
@@ -31,26 +33,25 @@ class AeroComponent(ABC):
         Initializes an AeroComponent object
         :param name: The name of the component
         :param ref_direction: The primary axis of the component (e.g., hinge axis)
+        :param xyz_ref: The primary axis of the aero component
         :param control_pivot: The axis at which the component will rotate given a starship_control input
         :param is_prime: Flag to indicate if this is a primary component. If False, component does not hold aerodynamic buildup
         :param symmetric_comp: The AeroComponent object that is symmetric to the current AeroComponent object
         :param actuator_model: The actuator model object to use
         """
 
-        self.name = name
-        self.id = None
+        super().__init__(name, xyz_ref)
+
         self.ref_direction = np.array(ref_direction)
         self.control_pivot = control_pivot
         self.is_prime = is_prime
         self.symmetric_comp = symmetric_comp
         self.symmetry_type = ''  # either 'xz-plane' or 'x-radial'
         self.radial_angle = None  # degrees of rotation around x-axis
-        self.parent = None
         self.actuator_model = actuator_model
 
         # Mesh and Position Attributes
         self.mesh: Optional[pv.PolyData] = None
-        self.xyz_ref = np.array([0., 0., 0.])
         self.static_transform_matrix = np.eye(4)
         self.dynamic_transform_matrix = np.eye(4)
 
@@ -72,20 +73,6 @@ class AeroComponent(ABC):
         self.control_pivot_actor = None
         self.force_actors = []
 
-    def update_id(self, new_id: int):
-        """
-        Updates the vehicle id
-        :param new_id: The new vehicle id (int)
-        """
-        self.id = new_id
-
-    def set_parent(self, parent: 'AeroComponent'):
-        """
-        Sets self.parent to the AeroVehicle for higher level information such as center of mass
-        :param: parent: The AeroVehicle that the component belongs to
-        """
-        self.parent = parent
-
     def set_actuator(self, actuator: Actuator):
         """
         TODO
@@ -93,10 +80,10 @@ class AeroComponent(ABC):
         self.actuator_model = actuator
 
     def get_forces_and_moments(
-        self,
-        state: Union[np.ndarray, ca.MX],
-        true_deflection: Union[float, ca.MX]) \
-        -> Tuple[Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX]]:
+            self,
+            state: Union[np.ndarray, ca.MX],
+            true_deflection: Union[float, ca.MX]) \
+            -> Tuple[Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX]]:
         """
         Calculates the aerodynamic forces and moments on the component.
         This function is type-aware and will use either NumPy or CasADi based on the input type.
@@ -190,7 +177,8 @@ class AeroComponent(ABC):
         :param alpha: Angle of attack (float for NumPy, ca.MX for CasADi)
         :param beta: Side slip angle (float for NumPy, ca.MX for CasADi)
         :param speed: Velocity (float for NumPy, ca.MX for CasADi)
-        :param angular_rate: Angular rotation of the vehicle in the body frame (float for NumPy, ca.MX for CasADi)
+        :param angular_rate: Angular rotation of the vehicle in the body frame (np.ndarray for NumPy, ca.MX for CasADi)
+        :param T: Transformation matrix (np.ndarray for NumPy, ca.MX for CasADi)
         :return: Forces and moments (np.ndarray or ca.MX)
         """
         # Check if inputs are CasADi symbolic variables
@@ -201,26 +189,28 @@ class AeroComponent(ABC):
             def vertcat_func(*args):
                 return ca.vertcat(*args)
 
-            #T = ca.MX(self.static_transform_matrix)
             S = ca.diag(ca.MX([1, -1, 1]))
         else:
             # Define the NumPy equivalent for constructing a vector
             def vertcat_func(*args):
                 return np.array(args)
-            #T = self.static_transform_matrix
+
             S = np.diag([1, -1, 1])
 
         # Get rotation matrix from body frame to component frame
         R = T[:3, :3]
 
+        # Add rotation around y-axis for symmetry
         R_eff = S @ R
 
+        # Mirror angle of sideslip
         mirrored_beta = -beta
 
         # The roll (p) and yaw (r) rates are inverted due to the reflection.
         p, q, r = angular_rate[0], angular_rate[1], angular_rate[2]
         mirrored_angular_rate = vertcat_func(-p, q, -r)
 
+        # Get forces and moments
         F_c, M_c = self.symmetric_comp.buildup_manager.get_forces_and_moments(
             alpha,
             mirrored_beta,
@@ -230,17 +220,11 @@ class AeroComponent(ABC):
             mirrored_angular_rate[2]
         )
 
-        #F_b_mirrored = vertcat_func(F_b[0], -F_b[1], F_b[2])
-
-        # The rolling moment (l) and yawing moment (n) are inverted.
-        #M_b_mirrored = vertcat_func(-M_b[0], M_b[1], -M_b[2])
-
-        #F_b = R_eff.T @ F_b_mirrored
-        #M_b = R_eff.T @ M_b_mirrored
-
+        # Rotate forces and moments from component frame to body frame
         F_b = R_eff.T @ F_c
         M_b = R_eff.T @ M_c
 
+        # Stack the forces and moments
         F_b_mirrored = vertcat_func(F_b[0], -F_b[1], F_b[2])
         M_b_mirrored = vertcat_func(-M_b[0], M_b[1], -M_b[2])
 
@@ -355,9 +339,8 @@ class AeroComponent(ABC):
 
         # The user_matrix allows for efficient transformation of the actor
         self.pv_actor.user_matrix = self.get_transform(0)
-        print(1)
 
-    def get_transform(self, rotation: Union[float, ca.MX] = 0) -> Union[np.ndarray, ca.MX]:
+    def get_transform(self, rotation: Union[float, ca.MX] = 0.0) -> Union[np.ndarray, ca.MX]:
         """
         Calculates the 4x4 homogeneous transformation matrix for the component
         :param rotation: The rotation angle [radians] around the `ref_direction`
@@ -389,12 +372,11 @@ class AeroComponent(ABC):
             else:
                 raise ValueError("self.symmetry_type must be either 'xz-plane' or 'x-radial'")
 
-        # Static rotations based on component geometry (can be calculated with NumPy)
+        # Static rotations based on component geometry
         transform_from_axis_vec = utils.rotation_matrix_from_vectors(x_vec, self.ref_direction)
         transform_from_ref = utils.translation_matrix(self.xyz_ref)
 
         # Calculate the Dynamic Control Deflection Matrix
-        # Use the dispatched functions to create a matrix of the correct type
         transform_from_control = eye_func(4)
         if self.control_pivot is not None:
             transform_from_control = utils.rotation_matrix_from_axis_angle(self.control_pivot, rotation)
@@ -419,6 +401,7 @@ class AeroComponent(ABC):
 
     def update_dynamic_transform(self, state: np.ndarray):
         """
+        TODO move to utils
         Updates the component's dynamic transformation matrix used for animation
         :param state: The current state of the vehicle (position, velocity, quaternion, angular_velocity)
         """
@@ -434,7 +417,7 @@ class AeroComponent(ABC):
 
         self.dynamic_transform_matrix = static_to_dynamic_transform @ self.static_transform_matrix
 
-    def update_actor(self, state: np.ndarray, true_deflection: float):
+    def update_actor(self, state: np.ndarray, true_deflection=0.0):
         """
         Updates the PyVista actor's transformation matrix in the 3D scene
         :param state: The current state of the vehicle (position, velocity, quaternion, angular_velocity)
@@ -485,33 +468,20 @@ class AeroComponent(ABC):
             self.parent.pl.remove_actor(actor)
         self.force_actors.clear()
 
+        # Define start of force line
         start = pos_inertial + R @ self.xyz_ref
 
         F_b, _ = self.get_forces_and_moments(state, true_deflection)
 
         k = .15
         direction = (R @ F_b) * k
+
+        # Define end of force line
         end = start + direction
 
         line = pv.Line(start, end)
         actor = self.parent.pl.add_mesh(line, color='red', line_width=3)
         self.force_actors.append(actor)
-
-    def translate(self, xyz: Union[np.ndarray, List[float]]) -> "AeroComponent":
-        """
-        Sets the component's reference position relative to the vehicle's origin
-        :param xyz: The new reference position [x, y, z] in the vehicle's body frame
-        :return: The instance of the component (`self`)
-        """
-        self.xyz_ref = np.array(xyz)
-        return self
-
-    def set_translate(self, xyz: Union[np.ndarray, List[float]]):
-        """
-        Sets the component's reference position. This is an alias for `translate`
-        :param xyz: The new reference position [x, y, z] in the vehicle's body frame
-        """
-        self.translate(xyz)
 
     def draw_ref_direction(self, pl: pv.Plotter, size: float = 1.0) -> pv.Actor:
         """

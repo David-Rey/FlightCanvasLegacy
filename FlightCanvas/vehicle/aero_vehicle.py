@@ -1,10 +1,11 @@
 # aero_project/FlightCanvas/aero_vehicle.py
 
 import pathlib
-from typing import List, Union
+from typing import List, Union, Optional
 
 import aerosandbox.numpy as np
 
+from FlightCanvas.components.propulsion import Propulsion
 from FlightCanvas.vehicle.actuator_dynamics import ActuatorDynamics
 from FlightCanvas.vehicle.vehicle_dynamics import VehicleDynamics
 
@@ -21,7 +22,8 @@ class AeroVehicle:
             self,
             name: str,
             xyz_ref: Union[np.ndarray, List[float]],
-            components: List[AeroComponent]
+            components: List[AeroComponent],
+            propulsion: Optional[List[Propulsion]] = None,
     ):
         """
         Initializes the AeroVehicle instance
@@ -35,13 +37,15 @@ class AeroVehicle:
         self.moi = self.mass * np.eye(3)
         self.components = components
         self.num_components = len(components)
+        self.propulsion = propulsion
+        self.num_propulsion = len(propulsion) if propulsion is not None else 0
 
         self.vehicle_dynamics = None
         self.actuator_dynamics = None
         self.vehicle_path = f'vehicle_saves/{self.name}'
 
-        for i in range(len(self.components)):
-            self.components[i].update_id(i)
+        #for i in range(len(self.components)):
+        #    self.components[i].update_id(i)
 
         [comp.set_parent(self) for comp in self.components]
 
@@ -85,7 +89,7 @@ class AeroVehicle:
         """
         Creates dynamics in the form x_dot = f(x, u)
         """
-        self.vehicle_dynamics = VehicleDynamics(self.mass, self.moi, self.components, control_mapping)
+        self.vehicle_dynamics = VehicleDynamics(self.mass, self.moi, self.components, control_mapping, self.propulsion)
 
     def init_buildup_manager(self):
         """
@@ -96,7 +100,7 @@ class AeroVehicle:
 
     def compute_buildup(self):
         """
-        Computes the aerodynamic buildup data for all 'prime' FlightCanvas
+        Computes the aerodynamic buildup data for all 'prime' aero components
         """
         print("Computing buildup data...")
         for component in self.components:
@@ -104,7 +108,7 @@ class AeroVehicle:
 
     def save_buildup(self):
         """
-        Saves the aerodynamic buildup data for all 'prime' FlightCanvas
+        Saves the aerodynamic buildup data for all 'prime' aero components
         """
         print("Saving buildup data...")
         for component in self.components:
@@ -112,7 +116,7 @@ class AeroVehicle:
 
     def save_buildup_fig(self):
         """
-        Saves the aerodynamic buildup figures for all 'prime' FlightCanvas
+        Saves the aerodynamic buildup figures for all 'prime' aero components
         """
         print("Saving buildup figures...")
         for component in self.components:
@@ -120,7 +124,7 @@ class AeroVehicle:
 
     def load_buildup(self):
         """
-        Loads the aerodynamic buildup data for all 'prime' FlightCanvas
+        Loads the aerodynamic buildup data for all 'prime' aero components
         """
         print('Loading buildup data...')
         for component in self.components:
@@ -128,7 +132,7 @@ class AeroVehicle:
 
     def generate_mesh(self):
         """
-        Generate the mesh for all FlightCanvas and applies their local translation
+        Generate the mesh for all components and applies their local translation
         """
         for component in self.components:
             component.generate_mesh()
@@ -137,21 +141,21 @@ class AeroVehicle:
         """
         TODO
         """
-        actuators = []
+        aero_actuators = []
         for i in range(self.num_components):
-            com_act = self.components[i].actuator_model
-            actuators.append(com_act)
+            comp_act = self.components[i].actuator_model
+            aero_actuators.append(comp_act)
 
-        self.actuator_dynamics = ActuatorDynamics(actuators)
+        self.actuator_dynamics = ActuatorDynamics(aero_actuators)
 
-    def dynamics(self, state: np.ndarray, control: np.ndarray):
+    def dynamics(self, state: np.ndarray, control_deflections: np.ndarray):
         """
         Wrapper for 6-Degree of freedom dynamics in vehicle dynamics class
         """
         if self.vehicle_dynamics.allocation_matrix is None:
             raise ValueError("Vehicle dynamics is not allocated")
 
-        cmd_deflections = self.vehicle_dynamics.allocation_matrix @ control
+        cmd_deflections = self.vehicle_dynamics.allocation_matrix @ control_deflections
 
         true_deflections = self.actuator_dynamics.update_deflections(cmd_deflections)
 

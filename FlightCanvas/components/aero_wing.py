@@ -21,6 +21,7 @@ class AeroWing(AeroComponent):
         xsecs: List["asb.WingXSec"],
         ref_direction: Union[np.ndarray, List[float]],
         control_pivot=None,
+        xyz_ref=np.array([0., 0., 0.]),
         is_prime: bool = True,
         symmetric_comp: Optional['AeroComponent'] = None,
         actuator_model: Optional[Actuator] = None,
@@ -31,18 +32,19 @@ class AeroWing(AeroComponent):
         Initializes the AeroWing component
         :param name: The name of the wing or wing section
         :param xsecs: A list of `aerosandbox.WingXSec` objects that define the wing's cross-sections
-        :param ref_direction: The primary axis for rotation, typically representing the hinge line of a starship_control surface
-        :param control_pivot: The axis at which the component will rotate given a starship_control input
+        :param ref_direction: The primary axis for rotation, typically representing the hinge line of a control surface
+        :param control_pivot: The axis at which the component will rotate given a control input
+        :param xyz_ref: The reference position of the wing
         :param is_prime: Inherited from AeroComponent. Used to identify the primary wing in a symmetric pair
         :param symmetric_comp: The symmetric component of the wing
-        :param actuator_model: The actuator model of the wing deflection around the starship_control pivot
+        :param actuator_model: The actuator model of the wing deflection around the control pivot
         :param kwargs:  Additional keyword arguments to be passed to the `aerosandbox.Wing` constructor
         """
         super().__init__(name, ref_direction, control_pivot=control_pivot, is_prime=is_prime,
                          symmetric_comp=symmetric_comp, actuator_model=actuator_model)
 
         # Set translation
-        self.set_translate(ref_direction)
+        self.set_translate(xyz_ref)
 
         # Set symmetry type
         self.symmetry_type = symmetry_type

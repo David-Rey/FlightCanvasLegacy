@@ -57,9 +57,9 @@ class VehicleVisualizer:
         for i in range(len(self.vehicle.components)):
             comp = self.vehicle.components[i]
             if true_deflection is not None:
-                comp.update_actor(state, float(true_deflection[i]))
+                comp.update_actor(state, true_deflection=float(true_deflection[i]))
             else:
-                comp.update_actor(state, 0)
+                comp.update_actor(state, true_deflection=0)
 
     def init_debug(self, size=1, label=True):
         """

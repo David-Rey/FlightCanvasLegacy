@@ -1,11 +1,13 @@
 from FlightCanvas.components.aero_component import AeroComponent
 
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional, Dict
 import numpy as np
 import casadi as ca
 from FlightCanvas import utils
 
 from casadi import Function
+
+from FlightCanvas.components.propulsion import Propulsion
 
 
 class VehicleDynamics:
@@ -21,12 +23,19 @@ class VehicleDynamics:
             mass: float,
             moi: np.ndarray,
             components: List[AeroComponent],
-            control_mapping):
+            control_mapping: Union[None, Dict],
+            propulsion: Optional[List[Propulsion]] = None
+            ):
 
         self.mass = mass
         self.moi = moi
+
         self.components = components
         self.control_mapping = control_mapping
+
+        self.propulsion = propulsion
+        self.num_propulsion = len(propulsion) if propulsion is not None else 0
+
         self.num_control_inputs = 0
         self.num_actuator_inputs_comp = len(components)
         if self.control_mapping is not None:
@@ -35,7 +44,45 @@ class VehicleDynamics:
 
         self.create_casadi_model()
 
-    def compute_forces_and_moments(
+    def compute_thrust_forces_and_moments(
+            self,
+            true_thrust_data: Union[np.ndarray, ca.MX]
+    ) -> Tuple[Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX]]:
+        """
+        Computes thrust forces and moments on the vehicle. This function
+        is type-aware and will use either NumPy or CasADi based on the input type.
+        :param true_thrust_data: This holds the current thrust and gimbal data fora all the propulsion's in the format
+         defined below.
+            true_thrust_data = [thrust_0, gimbal_0x, gimbal_0y, thrust_1, gimbal_1x, gimbal_1y]
+        The length of the input should be 3 times the number of propulsion's
+        :returns: The computed forces and moments
+        """
+
+        is_casadi = isinstance(true_thrust_data, (ca.SX, ca.MX))
+
+        if len(true_thrust_data) % 3 != 0:
+            raise ValueError("true_thrust_data must be a multiple of 3")
+
+        if is_casadi:
+            F_b = ca.MX.zeros(3, 1)
+            M_b = ca.MX.zeros(3, 1)
+        else:
+            F_b = np.zeros(3)
+            M_b = np.zeros(3)
+
+        for i in range(len(self.propulsion)):
+            propulsion = self.propulsion[i]
+            thrust = true_thrust_data[3*i]
+            gimbal_x = true_thrust_data[3*i + 1]
+            gimbal_y = true_thrust_data[3*i + 2]
+            F_b_prop, M_b_prop = propulsion.get_forces_and_moments(thrust, gimbal_x, gimbal_y)
+
+            F_b += F_b_prop
+            M_b += M_b_prop
+
+        return F_b, M_b
+
+    def compute_aero_forces_and_moments(
             self,
             state: Union[np.ndarray, ca.MX],
             true_deflections: Union[np.ndarray, ca.MX],
@@ -107,7 +154,7 @@ class VehicleDynamics:
             omega_matrix_func = utils.omega
 
         # Calculate external forces and moments as function
-        F_B_aero, M_B_aero = self.compute_forces_and_moments(state, deflections_true)
+        F_B_aero, M_B_aero = self.compute_aero_forces_and_moments(state, deflections_true)
 
         # Sum Aero and disturbances
         F_B = F_B_aero + F_dist
@@ -191,7 +238,6 @@ class VehicleDynamics:
         comp_lookup_by_index = {comp.name: i for i, comp in enumerate(self.components)}
 
         # Initialize the matrix. Rows correspond to the individual actuator inputs,
-        # and columns correspond to the high-level starship_control commands.
         allocation_matrix = np.zeros(
             (self.num_actuator_inputs_comp, self.num_control_inputs)
         )

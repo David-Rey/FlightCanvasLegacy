@@ -9,6 +9,7 @@ from FlightCanvas import utils
 from typing import Tuple
 import casadi as ca
 from typing import Union
+#from FlightCanvas.components.aero_component import AeroComponent
 
 
 class BuildupManager:

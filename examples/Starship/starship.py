@@ -41,7 +41,6 @@ class Starship:
         back_flaps = self._create_back_flaps()
 
         all_components = [body, *front_flaps, *back_flaps]
-        #all_components = [body, *front_flaps]
 
         # Define the starship_control mapping
         control_mapping = self._get_control_mapping()
@@ -184,28 +183,16 @@ class Starship:
         :return: Control mapping from abstract commands to flap deflections
         """
         return {
-            "pitch starship_control": {
+            "Front Flap Control": {
                 "Front Flap": 1.0,
-                "Front Flap Star": 1.0,
-                "Aft Flap": -1.0,
-                "Aft Flap Star": -1.0
             },
-            "roll starship_control": {
-                "Front Flap": 1.0,
-                "Front Flap Star": -1.0,
-                "Aft Flap": 1.0,
-                "Aft Flap Star": -1.0
-            },
-            "yaw starship_control": {
-                "Front Flap": -1.0,
+            "Front Flap Star Control": {
                 "Front Flap Star": 1.0,
-                "Aft Flap": 1.0,
-                "Aft Flap Star": -1.0
             },
-            "drag starship_control": {
-                "Front Flap": 1.0,
-                "Front Flap Star": 1.0,
+            "Back Flap Control": {
                 "Aft Flap": 1.0,
+            },
+            "Back Flap Star Control": {
                 "Aft Flap Star": 1.0
             }
         }
@@ -264,15 +251,15 @@ class Starship:
         tf = 10
         flight = Flight(self.vehicle, tf, dt=dt)
 
-        trim = Trimpoint(self.vehicle.vehicle_dynamics)
-        z_guess = np.array([-60, 0, np.deg2rad(12)])
-        trim.get_trimpoint(z_guess)
-        trim.init_LQR()
+        #trim = Trimpoint(self.vehicle.vehicle_dynamics)
+        #z_guess = np.array([-60, 0, np.deg2rad(12)])
+        #trim.get_trimpoint(z_guess)
+        #trim.init_LQR()
         #trim.yaw_control_analysis()
 
         #trim.plot_pz_with_feedback()
 
-        initial_state = trim.x_star
+        #initial_state = trim.x_star
         #trim.draw_wrench_space()
         #inital_state = trim.u_star
         #starship_control = StarshipController(sys)
@@ -280,11 +267,11 @@ class Starship:
         #inital_state, inital_control, _ = trim.get_trimpoint()
         #trim.get_LQR_control()
 
-        initial_state[2] = 800
-        initial_state[11] = 0.001
+        #initial_state[2] = 800
+        #initial_state[11] = 0.001
 
         #trim.draw_wrench_space()
-        flight.run_sim(initial_state, trim, log)
+        #flight.run_sim(initial_state, trim, log)
 
         #analysis = Analysis(log)
         #analysis.generate_control_plot()
@@ -298,11 +285,11 @@ class Starship:
 
         vv = VehicleVisualizer(self.vehicle)
         vv.init_actors(opacity=0.6)
-        #vv.init_debug(size=2)
-        #vv.show()
-        vv.add_grid()
+        vv.init_debug(size=4)
+        vv.show()
+        #vv.add_grid()
         #vv.generate_square_traj()
-        vv.animate(log, cam_distance=80, zoom=1.5)
+        #vv.animate(log, cam_distance=80, zoom=1.5)
 
 
 
