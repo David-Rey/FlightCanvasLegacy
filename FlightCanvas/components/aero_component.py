@@ -88,7 +88,7 @@ class AeroComponent(Component, ABC):
         Calculates the aerodynamic forces and moments on the component.
         This function is type-aware and will use either NumPy or CasADi based on the input type.
         :param state: The state vector (position, velocity, quaternion, angular velocity) in either CasADi or NumPy.
-        :param true_deflection: TODO
+        :param true_deflection: ture deflection of the aero component in radians.
         """
         is_casadi = isinstance(state, (ca.SX, ca.MX))
 

@@ -51,6 +51,6 @@ class Component(ABC):
     def update_actor(self, **kwargs):
         pass
 
-    @abstractmethod
-    def get_transform(self, **kwargs) -> Union[np.ndarray, ca.MX]:
-        pass
+    #@abstractmethod
+    #def get_transform(self, **kwargs) -> Union[np.ndarray, ca.MX]:
+    #    pass

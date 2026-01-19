@@ -4,6 +4,7 @@ from scipy.interpolate import splprep, splev
 
 from FlightCanvas.vehicle.aero_vehicle import AeroVehicle
 from FlightCanvas.components.aero_fuselage import AeroFuselage
+from FlightCanvas.components.propulsion import Propulsion
 from FlightCanvas.components.aero_wing import create_planar_wing_pair, AeroWing
 from FlightCanvas.Flight.flight import Flight
 from FlightCanvas.analysis.log import Log
@@ -39,8 +40,9 @@ class Starship:
         body = self._create_body()
         front_flaps = self._create_front_flaps()
         back_flaps = self._create_back_flaps()
+        prop = self._create_rocket_engine()
 
-        all_components = [body, *front_flaps, *back_flaps]
+        all_aero_components = [body, *front_flaps, *back_flaps]
 
         # Define the starship_control mapping
         control_mapping = self._get_control_mapping()
@@ -49,7 +51,8 @@ class Starship:
         self.vehicle = AeroVehicle(
             name="Starship",
             xyz_ref=[0, 0, 0],
-            components=all_components,
+            aero_components=all_aero_components,
+            prop_components=prop
         )
 
         # Set mass and inertia properties
@@ -175,6 +178,21 @@ class Starship:
             control_pivot=[1, 0, 0],
             actuator_model=Actuator([1], [0.1, 1])
         )
+
+    def _create_rocket_engine(self) -> List[Propulsion]:
+        """
+        Create rocket engine components
+        """
+        name = "Rocket Engine"
+        prop = Propulsion(
+            name=name,
+            thrust_direction=[1, 0, 0],
+            thrust_bounds=[1, 2],
+            gimbal_bounds=[0, 0],
+            size=1.0,
+            xyz_ref=[0, 0, 0]
+        )
+        return [prop]
 
     @staticmethod
     def _get_control_mapping() -> Dict[str, Dict[str, float]]:

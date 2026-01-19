@@ -22,22 +22,22 @@ class VehicleDynamics:
             self,
             mass: float,
             moi: np.ndarray,
-            components: List[AeroComponent],
+            aero_components: List[AeroComponent],
             control_mapping: Union[None, Dict],
-            propulsion: Optional[List[Propulsion]] = None
+            prop_components: Optional[List[Propulsion]] = None
             ):
 
         self.mass = mass
         self.moi = moi
 
-        self.components = components
+        self.aero_components = aero_components
         self.control_mapping = control_mapping
 
-        self.propulsion = propulsion
-        self.num_propulsion = len(propulsion) if propulsion is not None else 0
+        self.prop_components = prop_components
+        self.num_propulsion = len(prop_components) if prop_components is not None else 0
 
         self.num_control_inputs = 0
-        self.num_actuator_inputs_comp = len(components)
+        self.num_actuator_inputs_comp = len(aero_components)
         if self.control_mapping is not None:
             self.num_control_inputs = len(control_mapping)
             self.allocation_matrix = self.create_allocation_matrix()
@@ -70,8 +70,8 @@ class VehicleDynamics:
             F_b = np.zeros(3)
             M_b = np.zeros(3)
 
-        for i in range(len(self.propulsion)):
-            propulsion = self.propulsion[i]
+        for i in range(len(self.prop_components)):
+            propulsion = self.prop_components[i]
             thrust = true_thrust_data[3*i]
             gimbal_x = true_thrust_data[3*i + 1]
             gimbal_y = true_thrust_data[3*i + 2]
@@ -104,8 +104,8 @@ class VehicleDynamics:
             M_b = np.zeros(3)
 
         # For each component, look up the forces and moments based on its local flow conditions
-        for i in range(len(self.components)):
-            component = self.components[i]
+        for i in range(len(self.aero_components)):
+            component = self.aero_components[i]
             true_deflection = true_deflections[i]
 
             F_b_comp, M_b_comp = component.get_forces_and_moments(state, true_deflection)
@@ -234,8 +234,8 @@ class VehicleDynamics:
         command_names = self.control_mapping.keys()
         command_to_col = {name: i for i, name in enumerate(command_names)}
 
-        comp_lookup = {comp.name: comp for comp in self.components}
-        comp_lookup_by_index = {comp.name: i for i, comp in enumerate(self.components)}
+        comp_lookup = {comp.name: comp for comp in self.aero_components}
+        comp_lookup_by_index = {comp.name: i for i, comp in enumerate(self.aero_components)}
 
         # Initialize the matrix. Rows correspond to the individual actuator inputs,
         allocation_matrix = np.zeros(
