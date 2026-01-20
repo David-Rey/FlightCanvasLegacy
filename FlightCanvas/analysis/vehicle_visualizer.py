@@ -38,28 +38,49 @@ class VehicleVisualizer:
         self.pl.add_actor(self.info_text)
         self.pl.add_actor(self.state_vec_text)
 
-    def init_actors(self, **kwargs):
+    def init_aero_actors(self, **kwargs):
         """
-        Get PyVista actors for all FlightCanvas
-        :param: Additional keyword arguments to pass to init_actor
+        Initialize all the aero components actors
+        :param: Additional keyword arguments to pass to pl.mesh
         """
         # Generate the geometric mesh for all FlightCanvas upon initialization
         self.vehicle.generate_mesh()
 
+        [comp.init_actor(self.pl, **kwargs) for comp in self.vehicle.aero_components]
+
+    def init_prop_actors(self, **kwargs):
+        """
+        Initialize all the prop components actors
+        :param: Additional keyword arguments to pass to pl.mesh
+        """
+        [comp.init_actor(self.pl, **kwargs) for comp in self.vehicle.prop_components]
+
+    def init_actors(self, **kwargs):
+        """
+        Initialize all the components actors
+        :param: Additional keyword arguments to pass to pl.mesh
+        """
+        self.vehicle.generate_mesh()
+
         [comp.init_actor(self.pl, **kwargs) for comp in self.vehicle.components]
 
-    def update_actors(self, state: np.ndarray, true_deflection: Optional[np.ndarray]):
+    def update_actors(self, state: np.ndarray, true_deflection: np.ndarray, prop_state: Optional[np.ndarray]):
         """
-        Updates PyVista actors for all FlightCanvas
+        Updates PyVista actors for all components
         :param state: The current state of the vehicle (position, velocity, quaternion, angular_velocity)
+        :param prop_state: TODO
         :param true_deflection: The true deflection angle of the aero component
         """
-        for i in range(len(self.vehicle.components)):
-            comp = self.vehicle.components[i]
+        for i in range(len(self.vehicle.aero_components)):
+            aero_comp = self.vehicle.aero_components[i]
             if true_deflection is not None:
-                comp.update_actor(state, true_deflection=float(true_deflection[i]))
+                aero_comp.update_actor(state, true_deflection=float(true_deflection[i]))
             else:
-                comp.update_actor(state, true_deflection=0)
+                aero_comp.update_actor(state, true_deflection=0)
+
+        for i in range(len(self.vehicle.prop_components)):
+            prop_comp = self.vehicle.prop_components[i]
+            prop_comp.update_actor(state, prop_state)
 
     def init_debug(self, size=1, label=True):
         """
@@ -88,13 +109,11 @@ class VehicleVisualizer:
             comp = self.vehicle.components[i]
             comp.update_debug(state, float(true_deflection[i]))
 
-    def draw_text(self, sim_time, state, control, true_deflection):
+    def draw_text(self, sim_time, state):
         """
         Draw text information on screen
         :param sim_time: Current simulation time
         :param state: Current vehicle state
-        :param control: Current starship_control inputs
-        :param true_deflection: Current true deflection angles
         """
         # Basic flight information
         velocity = np.linalg.norm(state[3:6])
@@ -139,6 +158,9 @@ class VehicleVisualizer:
         self.pl.add_mesh(grid, color="white", show_edges=True, edge_color="black")
 
     def generate_square_traj(self, log: Log):
+        """
+        TODO: Broken
+        """
         x_arr = log.states
         u_arr = log.deflections
         t_arr = log.time
@@ -164,13 +186,15 @@ class VehicleVisualizer:
     def animate(self, log: Log, debug=False, show_text=True, cam_distance=5, zoom=1, fps=60):
         """
         Animates the aerodynamic visuals for all FlightCanvas
+        :param log: Log object that holds all the flight information
         :param debug: If true, draws debug visuals
         :param show_text: If true, draws text information
         :param cam_distance: The distance from the camera to center of mass
         :param fps: The frames per second of animation
         """
         x_arr = log.states
-        u_arr = log.deflections
+        u1_arr = log.deflections
+        u2_arr = log.prop_control
         t_arr = log.time
 
         if show_text:
@@ -193,21 +217,29 @@ class VehicleVisualizer:
 
         for i in range(num_frames):
             sim_time = dt * i
-            state, control = utils.interp_state(t_arr, x_arr, u_arr, sim_time)
+            data = utils.interp_variables(
+                t_arr,
+                sim_time,
+                state=x_arr,
+                true_deflection=u1_arr,
+                true_prop=u2_arr,
+            )
+            state = data['state']
+            true_deflection = data['true_deflection']
+            true_prop = data['true_prop']
+
             state[0] = -state[0]
 
-            true_deflection = control
-
             # Update actors with interpolated state
-            self.update_actors(state, true_deflection)
+            self.update_actors(state, true_deflection, true_prop)
             if debug:
                 self.update_debug(state, true_deflection)
 
             if show_text:
-                self.draw_text(sim_time, state, control, true_deflection)
+                self.draw_text(sim_time, state)
 
             # get center of mass position
-            pos = state[:3]  # + (C_B_I @ self.vehicle.xyz_ref)
+            pos = state[:3]
 
             # center camera focal point onto center of mass
             self.pl.camera.focal_point = pos

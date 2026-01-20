@@ -40,9 +40,9 @@ class Analysis:
         pz = self.log.get_state("z")
 
         plt.figure()
-        plt.plot(time, px, label='vx (m)')
-        plt.plot(time, py, label='vy (m)')
-        plt.plot(time, pz, label='vz (m)')
+        plt.plot(time, px, label='x (m)')
+        plt.plot(time, py, label='y (m)')
+        plt.plot(time, pz, label='z (m)')
 
         plt.xlabel('Time (s)')
         plt.ylabel('Position (m)')

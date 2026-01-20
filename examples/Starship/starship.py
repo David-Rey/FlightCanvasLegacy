@@ -8,9 +8,11 @@ from FlightCanvas.components.propulsion import Propulsion
 from FlightCanvas.components.aero_wing import create_planar_wing_pair, AeroWing
 from FlightCanvas.Flight.flight import Flight
 from FlightCanvas.analysis.log import Log
+from FlightCanvas.analysis.anlaysis import Analysis
 from FlightCanvas.analysis.vehicle_visualizer import VehicleVisualizer
 from examples.Starship.starship_trimpoint import Trimpoint
 from FlightCanvas.vehicle.actuator_dynamics import Actuator
+from FlightCanvas import utils
 
 from typing import Dict, List
 
@@ -35,6 +37,12 @@ class Starship:
         self.cg_x = cg_x
         self.height = height
         self.diameter = diameter
+
+        # Rocket engine
+        self.max_thrust = 1e6
+        self.min_thrust = 0.4 * self.max_thrust
+        self.gimbal_limits = 14
+        self.engine_size = 1.2
 
         # Create all geometric components
         body = self._create_body()
@@ -183,16 +191,23 @@ class Starship:
         """
         Create rocket engine components
         """
-        name = "Rocket Engine"
-        prop = Propulsion(
-            name=name,
-            thrust_direction=[1, 0, 0],
-            thrust_bounds=[1, 2],
-            gimbal_bounds=[0, 0],
-            size=1.0,
-            xyz_ref=[0, 0, 0]
-        )
-        return [prop]
+        num_engines = 1
+        spacing = 1
+        angles = np.linspace(0, 2 * np.pi, num_engines + 1)[:-1]
+        props = []
+        for angle in angles:
+            y_ref = spacing * np.sin(angle)
+            z_ref = spacing * np.cos(angle)
+            prop = Propulsion(
+                name="Rocket Engine",
+                thrust_direction=[1, 0, 0],
+                thrust_bounds=[self.min_thrust, self.max_thrust],
+                gimbal_bounds=[-self.gimbal_limits, self.gimbal_limits],
+                size=self.engine_size,
+                xyz_ref=[50 - self.cg_x, y_ref, z_ref]
+            )
+            props.append(prop)
+        return props
 
     @staticmethod
     def _get_control_mapping() -> Dict[str, Dict[str, float]]:
@@ -287,9 +302,14 @@ class Starship:
 
         #initial_state[2] = 800
         #initial_state[11] = 0.001
+        pos_0 = np.array([5, 0, 0])  # Initial position
+        vel_0 = np.array([0, 0, 0])  # Initial velocity
+        quat_0 = utils.euler_to_quat((0, 0, 0))
+        omega_0 = np.array([0, 0, 0])  # Initial angular velocity
+        initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 
         #trim.draw_wrench_space()
-        #flight.run_sim(initial_state, trim, log)
+        flight.run_sim(initial_state, log)
 
         #analysis = Analysis(log)
         #analysis.generate_control_plot()
@@ -302,12 +322,17 @@ class Starship:
         #analysis.generate_true_deflections_plot()
 
         vv = VehicleVisualizer(self.vehicle)
-        vv.init_actors(opacity=0.6)
-        vv.init_debug(size=4)
-        vv.show()
-        #vv.add_grid()
+        vv.init_aero_actors(opacity=0.6)
+        vv.init_prop_actors(opacity=0.9, color='grey')
+        #vv.init_debug(size=4)
+        #vv.show()
+        vv.add_grid()
+        #self.vehicle.prop_components[0].update_dynamic_transform(initial_state)
+
+        #vv.update_actors(initial_state, np.array([0, 0, 0, 0, 0]), np.array([1, 0, 0]))
         #vv.generate_square_traj()
-        #vv.animate(log, cam_distance=80, zoom=1.5)
+        #vv.show()
+        vv.animate(log, cam_distance=80, zoom=1.5)
 
 
 

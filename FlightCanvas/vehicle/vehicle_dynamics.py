@@ -25,7 +25,7 @@ class VehicleDynamics:
             aero_components: List[AeroComponent],
             control_mapping: Union[None, Dict],
             prop_components: Optional[List[Propulsion]] = None
-            ):
+    ):
 
         self.mass = mass
         self.moi = moi
@@ -60,7 +60,7 @@ class VehicleDynamics:
 
         is_casadi = isinstance(true_thrust_data, (ca.SX, ca.MX))
 
-        if len(true_thrust_data) % 3 != 0:
+        if true_thrust_data.shape[0] % 3 != 0:
             raise ValueError("true_thrust_data must be a multiple of 3")
 
         if is_casadi:
@@ -72,10 +72,8 @@ class VehicleDynamics:
 
         for i in range(len(self.prop_components)):
             propulsion = self.prop_components[i]
-            thrust = true_thrust_data[3*i]
-            gimbal_x = true_thrust_data[3*i + 1]
-            gimbal_y = true_thrust_data[3*i + 2]
-            F_b_prop, M_b_prop = propulsion.get_forces_and_moments(thrust, gimbal_x, gimbal_y)
+            thrust_state = true_thrust_data[3 * i:3 * i + 3]
+            F_b_prop, M_b_prop = propulsion.get_forces_and_moments(thrust_state)
 
             F_b += F_b_prop
             M_b += M_b_prop
@@ -118,10 +116,11 @@ class VehicleDynamics:
             self,
             state: Union[np.ndarray, ca.MX],
             deflections_true: Union[np.ndarray, ca.MX],
+            thrust_state: Union[np.ndarray, ca.MX],
             g: Union[np.ndarray, ca.MX],
             F_dist: Union[np.ndarray, ca.MX],
             M_dist: Union[np.ndarray, ca.MX]
-        ) -> Tuple[Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX]]:
+    ) -> Tuple[Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX]]:
         """
         Calculates the rigid body derivatives given a state and deflections
         param state: The state to calculate the derivatives for
@@ -154,14 +153,15 @@ class VehicleDynamics:
             omega_matrix_func = utils.omega
 
         # Calculate external forces and moments as function
-        F_B_aero, M_B_aero = self.compute_aero_forces_and_moments(state, deflections_true)
+        F_b_aero, M_b_aero = self.compute_aero_forces_and_moments(state, deflections_true)
+        F_b_prop, M_b_prop = self.compute_thrust_forces_and_moments(thrust_state)
 
-        # Sum Aero and disturbances
-        F_B = F_B_aero + F_dist
-        M_B = M_B_aero + M_dist
+        # Sum loads and disturbances
+        F_B = F_b_aero + F_b_prop + F_dist
+        M_B = M_b_aero + M_b_prop + M_dist
 
         # compute direction cosine matrix
-        C_B_I = dir_cosine_func(quat)   # INERTIAL frame to BODY frame.
+        C_B_I = dir_cosine_func(quat)  # INERTIAL frame to BODY frame
 
         # Rotate Gravity into Body Frame
         g_body = C_B_I @ g
@@ -184,7 +184,9 @@ class VehicleDynamics:
         # angular acceleration based on conservation of momentum
         omega_dot = inv_func(J_B) @ (M_B - cross_func(omega_B, J_B @ omega_B))
 
-        return v_dot, omega_dot, quat_dot
+        pos_I_dot = C_B_I.T @ v_body
+
+        return pos_I_dot, v_dot, omega_dot, quat_dot
 
     def create_casadi_model(self):
         """
@@ -193,7 +195,7 @@ class VehicleDynamics:
 
         # Define Symbolic State and Dynamics
         pos_I = ca.MX.sym('pos_I', 3)
-        vel_I = ca.MX.sym('vel_I', 3)
+        vel_B = ca.MX.sym('vel_B', 3)
         quat = ca.MX.sym('quat', 4)
         omega_B = ca.MX.sym('omega_B', 3)
 
@@ -202,29 +204,41 @@ class VehicleDynamics:
         M_dist = ca.MX.sym('M_dist', 3)
 
         # Define Symbolic Controls
-        control_deflections = ca.MX.sym('control_deflections', self.num_actuator_inputs_comp)
+        aero_control_deflections = ca.MX.sym('control_deflections', self.num_actuator_inputs_comp)
+        prop_control = ca.MX.sym('prop_control', 3 * self.num_propulsion)
         g = ca.MX.sym('g', 3)
 
         # concat state into a single variable
-        state = ca.vertcat(pos_I, vel_I, quat, omega_B)
+        state = ca.vertcat(pos_I, vel_B, quat, omega_B)
 
         # calculate x_dot
-        v_dot, omega_dot, quat_dot = self._calculate_rigid_body_derivatives(state, control_deflections, g, F_dist, M_dist)
+        pos_I_dot, v_dot, omega_dot, quat_dot = self._calculate_rigid_body_derivatives(state, aero_control_deflections,
+                                                                            prop_control, g, F_dist, M_dist)
 
-        state_dot = ca.vertcat(vel_I, v_dot, quat_dot, omega_dot)
+        state_dot = ca.vertcat(pos_I_dot, v_dot, quat_dot, omega_dot)
 
         # create casadi function of dynamics
-        self.full_dynamics = Function('dynamics', [state, control_deflections, g, F_dist, M_dist], [state_dot])
+        self.full_dynamics = Function('dynamics', [state, aero_control_deflections, prop_control, g, F_dist, M_dist], [state_dot])
 
-    def dynamics(self, state: np.ndarray, control_inputs: np.ndarray, gravity=True):
+    def dynamics(
+            self,
+            state: np.ndarray,
+            aero_control_inputs: np.ndarray,
+            prop_control_inputs: np.ndarray,
+            gravity=False):  # TODO: CHANGE
+        """
+        TODO
+        """
         if self.full_dynamics is None:
             self.create_casadi_model()
         F_dist = np.array([0, 0, 0])
         M_dist = np.array([0, 0, 0])
         if gravity:
-            return self.full_dynamics(state, control_inputs, np.array([0, 0, -9.81]), F_dist, M_dist)
+            return self.full_dynamics(state, aero_control_inputs, prop_control_inputs, np.array([0, 0, -9.81]), F_dist,
+                                      M_dist)
         else:
-            return self.full_dynamics(state, control_inputs, np.array([0, 0, 0]), F_dist, M_dist)
+            return self.full_dynamics(state, aero_control_inputs, prop_control_inputs, np.array([0, 0, 0]), F_dist,
+                                      M_dist)
 
     def create_allocation_matrix(self) -> np.ndarray:
         """
@@ -257,4 +271,3 @@ class VehicleDynamics:
                     print(f"Warning: Actuator '{actuator_name}' in starship_control mapping not found in components.")
 
         return allocation_matrix
-

@@ -1,9 +1,10 @@
 import aerosandbox.geometry.mesh_utilities as mesh_utils
 import pyvista as pv
 import numpy as np
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Dict
 import casadi as ca
 from typing import Callable
+
 
 def get_mesh(abs_mesh, translation_vector=None, **kwargs):
     """
@@ -292,8 +293,8 @@ def rotation_matrix_from_vectors(
 
 
 def rotation_matrix_from_axis_angle(
-    axis: Union[np.ndarray, List[float]],
-    angle_rad: Union[float, ca.MX]
+        axis: Union[np.ndarray, List[float]],
+        angle_rad: Union[float, ca.MX]
 ) -> Union[np.ndarray, ca.MX]:
     """
     Computes a 4x4 transformation matrix that rotates around a given axis by a
@@ -362,7 +363,7 @@ def rotation_matrix_from_axis_angle(
 
     # --- 6. Embed the 3x3 rotation into a 4x4 transformation matrix ---
     T = to_type(np.eye(4))  # Create a 4x4 identity of the target type
-    T[:3, :3] = R           # Set the top-left 3x3 block
+    T[:3, :3] = R  # Set the top-left 3x3 block
 
     return T
 
@@ -518,6 +519,7 @@ def linear_interpolation_1d(
 
     return y_interp
 
+
 def omega(w):
     return np.array([
         [0, -w[0], -w[1], -w[2]],
@@ -568,28 +570,36 @@ def rotate_z(rotate_angle_deg):
     return R_Comp_Body
 
 
-def interp_state(t_arr: np.ndarray, x_arr: np.ndarray, u_arr: np.ndarray, sim_time: float) -> Tuple[np.ndarray, np.ndarray]:
-    index = np.searchsorted(t_arr, sim_time) - 1
-    index = np.clip(index, 0, x_arr.shape[1] - 2)
+def interp_variables(t_arr: np.ndarray, sim_time: float, **arrays: np.ndarray) -> Dict[str, np.ndarray]:
+    """
+    Interpolates an arbitrary number of arrays based on a common time array.
 
-    t0 = t_arr[index]
-    t1 = t_arr[index + 1]
+    :param t_arr: 1D array of time steps
+    :param sim_time: The specific time to interpolate at
+    :param arrays: Named arrays to interpolate (e.g., state=x_arr, control=u_arr)
+    :return: A dictionary of interpolated results
+    """
+    # 1. Calculate interpolation indices and alpha (shared for all arrays)
+    index = np.searchsorted(t_arr, sim_time) - 1
+    index = np.clip(index, 0, t_arr.shape[0] - 2)
+
+    t0, t1 = t_arr[index], t_arr[index + 1]
     alpha = (sim_time - t0) / (t1 - t0)
 
-    # Interpolate state
-    state0 = x_arr[:, index]
-    state1 = x_arr[:, index + 1]
-    state = state0 + alpha * (state1 - state0)
+    results = {}
 
-    # Interpolate starship_control
-    if u_arr.size == 0:
-        return state, None
+    # 2. Iterate through all passed arrays and interpolate
+    for name, arr in arrays.items():
+        if arr is None or arr.size == 0:
+            results[name] = None
+            continue
 
-    control0 = u_arr[:, index]
-    control1 = u_arr[:, index + 1]
-    control = control0 + alpha * (control1 - control0)
+        # Linear interpolation formula: y = y0 + alpha * (y1 - y0)
+        val0 = arr[:, index]
+        val1 = arr[:, index + 1]
+        results[name] = val0 + alpha * (val1 - val0)
 
-    return state, control
+    return results
 
 
 def rk4(f: Callable[[np.ndarray], np.ndarray], state: np.ndarray, dt: float) -> np.ndarray:
@@ -661,3 +671,20 @@ def quat_multiply(
         return ca.vertcat(w, x, y, z)
     else:
         return np.array([w, x, y, z])
+
+
+def update_dynamic_transform(state: np.ndarray) -> np.ndarray:
+    """
+    Updates the component's dynamic transformation matrix used for animation
+    :param state: The current state of the vehicle (position, velocity, quaternion, angular_velocity)
+    """
+
+    pos_I = state[:3]  # Position in the inertial frame
+    quat = state[6:10]  # Orientation as a quaternion
+
+    # Construct a transformation matrix
+    R = dir_cosine_np(quat)
+    static_to_dynamic_transform = np.eye(4)
+    static_to_dynamic_transform[:3, 3] = pos_I
+    static_to_dynamic_transform[:3, :3] = R
+    return static_to_dynamic_transform

@@ -153,20 +153,23 @@ class AeroVehicle:
 
         self.actuator_dynamics = ActuatorDynamics(aero_actuators)
 
-    def dynamics(self, state: np.ndarray, control_deflections: np.ndarray):
+    def dynamics(self, state: np.ndarray, control_deflections_cmd: np.ndarray, prop_control_cmd: np.ndarray):
         """
         Wrapper for 6-Degree of freedom dynamics in vehicle dynamics class
         """
         if self.vehicle_dynamics.allocation_matrix is None:
             raise ValueError("Vehicle dynamics is not allocated")
 
-        cmd_deflections = self.vehicle_dynamics.allocation_matrix @ control_deflections
+        cmd_deflections = self.vehicle_dynamics.allocation_matrix @ control_deflections_cmd
 
         true_deflections = self.actuator_dynamics.update_deflections(cmd_deflections)
 
-        return self.vehicle_dynamics.dynamics(state, true_deflections).full().flatten()
+        # TODO
+        prop_control_true = prop_control_cmd
 
-    def get_true_deflections(self):
+        return self.vehicle_dynamics.dynamics(state, true_deflections, prop_control_true).full().flatten()
+
+    def get_true_aero_deflections(self):
         """
         TODO
         """

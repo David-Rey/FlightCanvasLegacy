@@ -15,7 +15,7 @@ class Log:
         self.aero_moments_names = ['Mx', 'My', 'Mz']
 
         self.max_steps = max_steps
-        self.current_idx = -1  # Python uses 0-based indexing
+        self.current_idx = -1
 
         # Preallocate arrays
         self.time = np.zeros(self.max_steps)
@@ -25,6 +25,7 @@ class Log:
         self.ekf_covariances = np.zeros((len(self.ekf_covariance_names), self.max_steps))
         self.control_inputs = np.zeros((len(self.control_names), self.max_steps))
         self.deflections = np.zeros((len(self.deflection_names), self.max_steps))
+        self.prop_control = np.zeros((3, self.max_steps))
         self.aero_forces = np.zeros((3, self.max_steps))
         self.aero_moments = np.zeros((3, self.max_steps))
 
@@ -62,12 +63,15 @@ class Log:
         elif attr == 'ekf_covariances':
             self._validate_size(value, len(self.ekf_covariance_names), attr)
             self.ekf_covariances[:, self.current_idx] = value
-        elif attr == 'control':
+        elif attr == 'deflection_control':
             self._validate_size(value, len(self.control_names), attr)
             self.control_inputs[:, self.current_idx] = value
         elif attr == 'deflections':
             self._validate_size(value, len(self.deflection_names), attr)
             self.deflections[:, self.current_idx] = value
+        elif attr == 'prop_control':
+            self._validate_size(value, len(self.prop_control), attr)
+            self.prop_control[:, self.current_idx] = value
         elif attr == 'aero_forces':
             self._validate_size(value, 3, attr)
             self.aero_forces[:, self.current_idx] = value
@@ -83,7 +87,9 @@ class Log:
             raise ValueError(f"{name} size mismatch: expected {expected}, got {len(value)}")
 
     def trim(self):
-        """Removes unused preallocated space."""
+        """
+        Removes unused preallocated space
+        """
         valid_range = slice(0, self.current_idx + 1)
         self.time = self.time[valid_range]
         self.states = self.states[:, valid_range]
@@ -92,11 +98,14 @@ class Log:
         self.ekf_covariances = self.ekf_covariances[:, valid_range]
         self.control_inputs = self.control_inputs[:, valid_range]
         self.deflections = self.deflections[:, valid_range]
+        self.prop_control = self.prop_control[:, valid_range]
         self.aero_forces = self.aero_forces[:, valid_range]
         self.aero_moments = self.aero_moments[:, valid_range]
 
     def expand(self):
-        """Doubles the preallocated capacity."""
+        """
+        Doubles the preallocated capacity
+        """
         new_steps = self.max_steps
         extra = np.zeros_like(self.time)  # Create zero buffers of current size
 
@@ -107,6 +116,7 @@ class Log:
         self.ekf_covariances = np.hstack([self.ekf_covariances, np.zeros((self.ekf_covariances.shape[0], new_steps))])
         self.control_inputs = np.hstack([self.control_inputs, np.zeros((self.control_inputs.shape[0], new_steps))])
         self.deflections = np.hstack([self.deflections, np.zeros((self.deflections.shape[0], new_steps))])
+        self.prop_control = self.deflections[:, valid_range]
         self.aero_forces = np.hstack([self.aero_forces, np.zeros((3, new_steps))])
         self.aero_moments = np.hstack([self.aero_moments, np.zeros((3, new_steps))])
 

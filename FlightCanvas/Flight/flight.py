@@ -13,11 +13,11 @@ class Flight:
         self.gravity = gravity
         self.steps = int(final_time / dt)
 
-    def run_sim(self, init_state: np.array, trim, log: Log):
+    def run_sim(self, init_state: np.array, log: Log):
         """
         TODO
         """
-        vnoiser = vnoise.Noise()
+        #vnoiser = vnoise.Noise()
 
         self.aero_vehicle.actuator_dynamics.c2d(self.dt)
         #trim.pitch_controller.c2d(self.dt)
@@ -25,21 +25,22 @@ class Flight:
         time = 0.0
         log.initialize_timestep(time)
         state = init_state
-        control = trim.get_control(state)
+        deflection_control = np.array([0, 0, 0, 0])
+        prop_control = np.array([1, 0, 0])
 
-        states_dot = self.aero_vehicle.dynamics(state, control)
+        states_dot = self.aero_vehicle.dynamics(state, deflection_control, prop_control)
 
         log.add(time, "states", state)
         log.add(time, "state_dots", states_dot)
-        log.add(time, "control", control)
-        log.add(time, "deflections", self.aero_vehicle.get_true_deflections())
+        log.add(time, "deflection_control", deflection_control)
+        log.add(time, "deflections", self.aero_vehicle.get_true_aero_deflections())
+        log.add(time, "prop_control", prop_control)
 
         for i in range(1, self.steps):
             time = i * self.dt
             log.initialize_timestep(time)
 
-            control = trim.get_control(state)
-            aero_vehicle_dyn = lambda state: self.aero_vehicle.dynamics(state, control)
+            aero_vehicle_dyn = lambda state: self.aero_vehicle.dynamics(state, deflection_control, prop_control)
 
             # Add Noise into simulation
             #noise_values = vnoiser.noise1(time) * 0.004
@@ -49,12 +50,13 @@ class Flight:
             #state[12] = state[12] + noise_values
 
             state = utils.rk4(aero_vehicle_dyn, state, self.dt)
-            states_dot = self.aero_vehicle.dynamics(state, control)
+            states_dot = self.aero_vehicle.dynamics(state, deflection_control, prop_control)
 
             log.add(time, "states", state)
             log.add(time, "state_dots", states_dot)
-            log.add(time, "control", control)
-            log.add(time, "deflections", self.aero_vehicle.get_true_deflections())
+            log.add(time, "deflection_control", deflection_control)
+            log.add(time, "deflections", self.aero_vehicle.get_true_aero_deflections())
+            log.add(time, "prop_control", prop_control)
 
         log.trim()
 

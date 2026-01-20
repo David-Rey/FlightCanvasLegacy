@@ -52,8 +52,6 @@ class AeroComponent(Component, ABC):
 
         # Mesh and Position Attributes
         self.mesh: Optional[pv.PolyData] = None
-        self.static_transform_matrix = np.eye(4)
-        self.dynamic_transform_matrix = np.eye(4)
 
         # AeroSandbox Attributes
         self.asb_object = None  # To hold the asb.Wing or asb.Fuselage
@@ -398,24 +396,6 @@ class AeroComponent(Component, ABC):
         :param kwargs: Additional keyword arguments to pass to get_transform
         """
         self.static_transform_matrix = self.get_transform(**kwargs)
-
-    def update_dynamic_transform(self, state: np.ndarray):
-        """
-        TODO move to utils
-        Updates the component's dynamic transformation matrix used for animation
-        :param state: The current state of the vehicle (position, velocity, quaternion, angular_velocity)
-        """
-
-        pos_I = state[:3]  # Position in the inertial frame
-        quat = state[6:10]  # Orientation as a quaternion
-
-        # Construct a transformation matrix
-        R = utils.dir_cosine_np(quat)
-        static_to_dynamic_transform = np.eye(4)
-        static_to_dynamic_transform[:3, 3] = pos_I
-        static_to_dynamic_transform[:3, :3] = R
-
-        self.dynamic_transform_matrix = static_to_dynamic_transform @ self.static_transform_matrix
 
     def update_actor(self, state: np.ndarray, true_deflection=0.0):
         """

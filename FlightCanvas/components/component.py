@@ -16,6 +16,9 @@ class Component(ABC):
         self.xyz_ref = xyz_ref
         self.parent = None
 
+        self.static_transform_matrix = np.eye(4)
+        self.dynamic_transform_matrix = np.eye(4)
+
     def set_parent(self, parent: 'AeroVehicle'):
         """
         Sets self.parent to the AeroVehicle for higher level information such as center of mass
@@ -38,6 +41,32 @@ class Component(ABC):
         :param xyz: The new reference position [x, y, z] in the vehicle's body frame
         """
         self.translate(xyz)
+
+    def update_dynamic_transform(self, state: np.ndarray):
+        """
+        TODO move to utils
+        Updates the component's dynamic transformation matrix used for animation
+        :param state: The current state of the vehicle (position, velocity, quaternion, angular_velocity)
+        """
+
+        pos_I = state[:3]  # Position in the inertial frame
+        quat = state[6:10]  # Orientation as a quaternion
+
+        # Construct a transformation matrix
+        R = utils.dir_cosine_np(quat)
+        static_to_dynamic_transform = np.eye(4)
+        static_to_dynamic_transform[:3, 3] = pos_I
+        static_to_dynamic_transform[:3, :3] = R
+
+        self.dynamic_transform_matrix = static_to_dynamic_transform @ self.static_transform_matrix
+
+    @abstractmethod
+    def update_transform(self, **kwargs):
+        """
+        Computes and updates the component's stored transformation matrix
+        :param kwargs: Additional keyword arguments to pass to get_transform
+        """
+        pass
 
     @abstractmethod
     def init_actor(self, pl: pv.Plotter, **kwargs):
