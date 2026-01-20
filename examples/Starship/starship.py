@@ -191,7 +191,7 @@ class Starship:
         """
         Create rocket engine components
         """
-        num_engines = 1
+        num_engines = 3
         spacing = 1
         angles = np.linspace(0, 2 * np.pi, num_engines + 1)[:-1]
         props = []
@@ -277,14 +277,15 @@ class Starship:
         state_names = ['x', 'y', 'z', 'vx', 'vy', 'vz', 'q0', 'q1', 'q2', 'q3', 'wx', 'wy', 'wz']
         control_names = ['pitch', 'yaw', 'roll', 'drag']
         deflection_names = ['b', 'f_left', 'f_right', 'b_left', 'b_right']
+        num_engines = 3
         maxSteps = 2000
-        log = Log(state_names, control_names, deflection_names, maxSteps)
+        log = Log(state_names, control_names, deflection_names, num_engines, maxSteps)
 
         dt = 0.01
         tf = 10
         flight = Flight(self.vehicle, tf, dt=dt)
 
-        #trim = Trimpoint(self.vehicle.vehicle_dynamics)
+        trim = Trimpoint(self.vehicle.vehicle_dynamics)
         #z_guess = np.array([-60, 0, np.deg2rad(12)])
         #trim.get_trimpoint(z_guess)
         #trim.init_LQR()
@@ -293,7 +294,7 @@ class Starship:
         #trim.plot_pz_with_feedback()
 
         #initial_state = trim.x_star
-        #trim.draw_wrench_space()
+
         #inital_state = trim.u_star
         #starship_control = StarshipController(sys)
         #starship_control.compute_lqr()
@@ -308,15 +309,16 @@ class Starship:
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 
-        #trim.draw_wrench_space()
+        #trim.draw_wrench_space(initial_state)
+
         flight.run_sim(initial_state, log)
 
-        #analysis = Analysis(log)
+        analysis = Analysis(log)
         #analysis.generate_control_plot()
         #analysis.generate_velocity_plot(include_vz=False)
         #analysis.generate_position_plot()
         #analysis.generate_euler_angle_plot()
-        #analysis.generate_angular_velocity_plot()
+        analysis.generate_angular_velocity_plot()
         #analysis.generate_quat_norm_plot()
         #analysis.generate_angle_of_attack_plot()
         #analysis.generate_true_deflections_plot()
@@ -326,13 +328,13 @@ class Starship:
         vv.init_prop_actors(opacity=0.9, color='grey')
         #vv.init_debug(size=4)
         #vv.show()
-        vv.add_grid()
+        #vv.add_grid()
         #self.vehicle.prop_components[0].update_dynamic_transform(initial_state)
 
         #vv.update_actors(initial_state, np.array([0, 0, 0, 0, 0]), np.array([1, 0, 0]))
         #vv.generate_square_traj()
         #vv.show()
-        vv.animate(log, cam_distance=80, zoom=1.5)
+        #vv.animate(log, cam_distance=80, zoom=1.5)
 
 
 

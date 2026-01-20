@@ -209,7 +209,7 @@ class Trimpoint:
         control = nominal_control + pitch_control + lateral_control
         return control
 
-    def draw_wrench_space(self):
+    def draw_wrench_space(self, state):
         flap_limits = np.deg2rad([0, 40])
         num_points = 100
         num_flaps = 4
@@ -221,7 +221,7 @@ class Trimpoint:
                 deflections = np.zeros(5)
                 deflections[i + 1] = flap_angles[j]
                 deflections = deflections
-                F_b, M_b = self.vehicle_dynamics.compute_forces_and_moments(self.x_star, deflections)
+                F_b, M_b = self.vehicle_dynamics.compute_aero_forces_and_moments(state, deflections)
                 M[i, j, :] = M_b
 
         fig = plt.figure()

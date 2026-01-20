@@ -81,11 +81,10 @@ class Propulsion(Component):
             )
             mesh_data['actor'].user_matrix = transform #@ reflection_x
 
-        print("1")
-        gimbal_x = 0
-        gimbal_y = 0
-        self.update_plume_transform(np.array([1, gimbal_x, gimbal_y]))
-        self.get_forces_and_moments(np.array([1, gimbal_x, gimbal_y]))
+        #gimbal_x = 0
+        #gimbal_y = 0
+        #self.update_plume_transform(np.array([1, gimbal_x, gimbal_y]))
+        #self.get_forces_and_moments(np.array([1, gimbal_x, gimbal_y]))
 
     def init_debug(self, pl: pv.Plotter, com: np.ndarray, size: float = 1.0, label=True):
         default_sphere_radius = 0.02
@@ -221,7 +220,7 @@ class Propulsion(Component):
         F_b = R @ F_c
 
         # Compute thrust moment
-        M_b = lib.cross(-lever_arm, F_b)
+        M_b = lib.cross(lever_arm, F_b)
 
         return F_b, M_b
 

@@ -17,16 +17,14 @@ class Flight:
         """
         TODO
         """
-        #vnoiser = vnoise.Noise()
 
         self.aero_vehicle.actuator_dynamics.c2d(self.dt)
-        #trim.pitch_controller.c2d(self.dt)
 
         time = 0.0
         log.initialize_timestep(time)
         state = init_state
         deflection_control = np.array([0, 0, 0, 0])
-        prop_control = np.array([1, 0, 0])
+        prop_control = np.tile(np.array([0, 0, 0]), self.aero_vehicle.num_prop_components)
 
         states_dot = self.aero_vehicle.dynamics(state, deflection_control, prop_control)
 
@@ -59,9 +57,4 @@ class Flight:
             log.add(time, "prop_control", prop_control)
 
         log.trim()
-
-
-
-
-
 

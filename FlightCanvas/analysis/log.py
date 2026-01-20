@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Log:
-    def __init__(self, state_names: list, control_names: list, deflection_names: list, max_steps=1000):
+    def __init__(self, state_names: list, control_names: list, deflection_names: list, num_engines: int, max_steps=1000):
         """
         Initialize the logger with preallocated NumPy arrays.
         """
@@ -25,7 +25,7 @@ class Log:
         self.ekf_covariances = np.zeros((len(self.ekf_covariance_names), self.max_steps))
         self.control_inputs = np.zeros((len(self.control_names), self.max_steps))
         self.deflections = np.zeros((len(self.deflection_names), self.max_steps))
-        self.prop_control = np.zeros((3, self.max_steps))
+        self.prop_control = np.zeros((3 * num_engines, self.max_steps))
         self.aero_forces = np.zeros((3, self.max_steps))
         self.aero_moments = np.zeros((3, self.max_steps))
 
