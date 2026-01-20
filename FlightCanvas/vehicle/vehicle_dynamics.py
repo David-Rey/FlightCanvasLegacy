@@ -1,19 +1,17 @@
-from FlightCanvas.components.aero_component import AeroComponent
-
 from typing import List, Union, Tuple, Optional, Dict
+
 import numpy as np
 import casadi as ca
-from FlightCanvas import utils
-
 from casadi import Function
 
+from FlightCanvas import utils
+from FlightCanvas.components.aero_component import AeroComponent
 from FlightCanvas.components.propulsion import Propulsion
 
 
 class VehicleDynamics:
     """
-    Vehicle dynamics class
-    TODO
+    Manages the 6-DOF (Degrees of Freedom) equations of motion for a flight vehicle
     """
 
     full_dynamics: ca.Function
@@ -172,25 +170,26 @@ class VehicleDynamics:
         # The Coriolis Term
         coriolis_accel = cross_func(omega_B, v_body)
 
-        # calculate inertial acceleration
+        # Calculate inertial acceleration
         v_dot = (F_B / self.mass) + g_body - coriolis_accel
 
-        # get moment of inertia
+        # Get moment of inertia
         J_B = array_func(self.moi)
 
-        # angular rate calculation
+        # Angular rate calculation
         quat_dot = 0.5 * (omega_matrix_func(omega_B) @ quat)  # + quat_dot_correction
 
-        # angular acceleration based on conservation of momentum
+        # Angular acceleration based on conservation of momentum
         omega_dot = inv_func(J_B) @ (M_B - cross_func(omega_B, J_B @ omega_B))
 
+        # Compute inertial position derivative
         pos_I_dot = C_B_I.T @ v_body
 
         return pos_I_dot, v_dot, omega_dot, quat_dot
 
     def create_casadi_model(self):
         """
-        TODO
+        Constructs the symbolic CasADi function for the vehicle dynamics
         """
 
         # Define Symbolic State and Dynamics
@@ -225,9 +224,9 @@ class VehicleDynamics:
             state: np.ndarray,
             aero_control_inputs: np.ndarray,
             prop_control_inputs: np.ndarray,
-            gravity=False):  # TODO: CHANGE
+            gravity=True):
         """
-        TODO
+        Evaluates the vehicle dynamics to compute the state derivative (x_dot)
         """
         if self.full_dynamics is None:
             self.create_casadi_model()

@@ -1,15 +1,12 @@
-# aero_project/FlightCanvas/aero_vehicle.py
-
 import pathlib
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 import aerosandbox.numpy as np
 
+from FlightCanvas.components.aero_component import AeroComponent
 from FlightCanvas.components.propulsion import Propulsion
 from FlightCanvas.vehicle.actuator_dynamics import ActuatorDynamics
 from FlightCanvas.vehicle.vehicle_dynamics import VehicleDynamics
-
-from FlightCanvas.components.aero_component import AeroComponent
 
 
 class AeroVehicle:

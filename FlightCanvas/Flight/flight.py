@@ -2,7 +2,6 @@ from FlightCanvas.analysis.log import Log
 from FlightCanvas.vehicle.aero_vehicle import AeroVehicle
 import numpy as np
 import FlightCanvas.utils as utils
-import vnoise
 
 
 class Flight:
@@ -15,7 +14,7 @@ class Flight:
 
     def run_sim(self, init_state: np.array, log: Log):
         """
-        TODO
+        Runs 6-Degree of freedom flight simulation given some initial state and logs all data to the logger
         """
 
         self.aero_vehicle.actuator_dynamics.c2d(self.dt)
@@ -39,13 +38,6 @@ class Flight:
             log.initialize_timestep(time)
 
             aero_vehicle_dyn = lambda state: self.aero_vehicle.dynamics(state, deflection_control, prop_control)
-
-            # Add Noise into simulation
-            #noise_values = vnoiser.noise1(time) * 0.004
-            #state[11] = state[11] + noise_values
-
-            #noise_values = vnoiser.noise1(time, base=2) * 0.001
-            #state[12] = state[12] + noise_values
 
             state = utils.rk4(aero_vehicle_dyn, state, self.dt)
             states_dot = self.aero_vehicle.dynamics(state, deflection_control, prop_control)

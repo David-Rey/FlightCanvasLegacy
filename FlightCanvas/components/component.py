@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import pyvista as pv
-import casadi as ca
-from typing import Union, List, Tuple
+from typing import Union, List
 from FlightCanvas import utils
 
 
@@ -44,7 +43,6 @@ class Component(ABC):
 
     def update_dynamic_transform(self, state: np.ndarray):
         """
-        TODO move to utils
         Updates the component's dynamic transformation matrix used for animation
         :param state: The current state of the vehicle (position, velocity, quaternion, angular_velocity)
         """
@@ -79,7 +77,3 @@ class Component(ABC):
     @abstractmethod
     def update_actor(self, **kwargs):
         pass
-
-    #@abstractmethod
-    #def get_transform(self, **kwargs) -> Union[np.ndarray, ca.MX]:
-    #    pass

@@ -73,7 +73,8 @@ class AeroComponent(Component, ABC):
 
     def set_actuator(self, actuator: Actuator):
         """
-        TODO
+        Sets the actuator for the given AeroComponent object
+        :param actuator: The actuator object
         """
         self.actuator_model = actuator
 

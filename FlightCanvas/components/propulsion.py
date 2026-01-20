@@ -68,9 +68,6 @@ class Propulsion(Component):
         self.nozzle_actor.user_matrix = transform
         self.nozzle_exit_actor.user_matrix = transform
 
-        #reflection_x = np.eye(4)
-        #reflection_x[0, 0] = -1
-
         self.plume_meshes = self.create_plume_geometry()
         for mesh_data in self.plume_meshes:
             mesh_data['actor'] = pl.add_mesh(
@@ -79,7 +76,7 @@ class Propulsion(Component):
                 opacity=mesh_data['opacity'],
                 smooth_shading=True
             )
-            mesh_data['actor'].user_matrix = transform #@ reflection_x
+            mesh_data['actor'].user_matrix = transform
 
         #gimbal_x = 0
         #gimbal_y = 0
@@ -180,7 +177,9 @@ class Propulsion(Component):
             thrust_state: Union[np.ndarray, ca.MX],
     ) -> Tuple[Union[np.ndarray, ca.MX], Union[np.ndarray, ca.MX]]:
         """
-        TODO
+        Calculates the aerodynamic forces and moments on the component
+        This function is type-aware and will use either NumPy or CasADi based on the input type.
+        :param thrust_state: ture state of propulsion object [thrust, gimbal_x, gimbal_y]
         """
         is_casadi = isinstance(thrust_state, (ca.SX, ca.MX))
 
@@ -403,7 +402,6 @@ class Propulsion(Component):
         """
         Update plume geometry by scaling z-position and applying gimbal rotation
         """
-        #thrust_state = np.array([throttle, gimbal_x_deg, gimbal_y_deg])
         throttle = thrust_state[0]
         gimbal_rotation = self.get_gimbal_transform(thrust_state)
 
@@ -417,11 +415,9 @@ class Propulsion(Component):
             translation = np.eye(4)
             translation[2, 3] = z_offset - mesh_data['base_z']
 
-            # Apply transforms in order: translate -> reflect -> gimbal
             transformed = mesh_data['original_mesh'].copy()
             transformed.transform(translation)
             transformed.transform(gimbal_rotation)
-            #transformed.transform(self.dynamic_transform_matrix)
 
             # Update the mesh points in place
             mesh_data['mesh'].points[:] = transformed.points
