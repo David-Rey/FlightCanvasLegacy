@@ -16,6 +16,11 @@ class VehicleDynamics:
 
     full_dynamics: ca.Function
 
+    state: ca.MX
+    state_dot: ca.MX
+    prop_control: ca.MX
+    aero_control_deflections: ca.MX
+
     def __init__(
             self,
             mass: float,
@@ -203,21 +208,25 @@ class VehicleDynamics:
         M_dist = ca.MX.sym('M_dist', 3)
 
         # Define Symbolic Controls
-        aero_control_deflections = ca.MX.sym('control_deflections', self.num_actuator_inputs_comp)
-        prop_control = ca.MX.sym('prop_control', 3 * self.num_propulsion)
+        self.aero_control_deflections = ca.MX.sym('control_deflections', self.num_actuator_inputs_comp)
+        self.prop_control = ca.MX.sym('prop_control', 3 * self.num_propulsion)
         g = ca.MX.sym('g', 3)
 
         # concat state into a single variable
-        state = ca.vertcat(pos_I, vel_B, quat, omega_B)
+        self.state = ca.vertcat(pos_I, vel_B, quat, omega_B)
 
         # calculate x_dot
-        pos_I_dot, v_dot, omega_dot, quat_dot = self._calculate_rigid_body_derivatives(state, aero_control_deflections,
-                                                                            prop_control, g, F_dist, M_dist)
+        pos_I_dot, v_dot, omega_dot, quat_dot = self._calculate_rigid_body_derivatives(self.state,
+                                                                                       self.aero_control_deflections,
+                                                                                       self.prop_control, g, F_dist,
+                                                                                       M_dist)
 
-        state_dot = ca.vertcat(pos_I_dot, v_dot, quat_dot, omega_dot)
+        self.state_dot = ca.vertcat(pos_I_dot, v_dot, quat_dot, omega_dot)
 
         # create casadi function of dynamics
-        self.full_dynamics = Function('dynamics', [state, aero_control_deflections, prop_control, g, F_dist, M_dist], [state_dot])
+        self.full_dynamics = Function('dynamics',
+                                      [self.state, self.aero_control_deflections, self.prop_control, g, F_dist, M_dist],
+                                      [self.state_dot])
 
     def dynamics(
             self,

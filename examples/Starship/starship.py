@@ -10,7 +10,7 @@ from FlightCanvas.Flight.flight import Flight
 from FlightCanvas.analysis.log import Log
 from FlightCanvas.analysis.anlaysis import Analysis
 from FlightCanvas.analysis.vehicle_visualizer import VehicleVisualizer
-from examples.Starship.starship_trimpoint import Trimpoint
+from examples.Starship.control.bellyflop_controller import BellyFlopController
 from FlightCanvas.vehicle.actuator_dynamics import Actuator
 from FlightCanvas import utils
 
@@ -285,7 +285,7 @@ class Starship:
         tf = 10
         flight = Flight(self.vehicle, tf, dt=dt)
 
-        trim = Trimpoint(self.vehicle.vehicle_dynamics)
+        con = BellyFlopController(self.vehicle.vehicle_dynamics)
         #z_guess = np.array([-60, 0, np.deg2rad(12)])
         #trim.get_trimpoint(z_guess)
         #trim.init_LQR()
@@ -303,7 +303,7 @@ class Starship:
 
         #initial_state[2] = 800
         #initial_state[11] = 0.001
-        pos_0 = np.array([5, 0, 0])  # Initial position
+        pos_0 = np.array([0, 0, 50])  # Initial position
         vel_0 = np.array([0, 0, 0])  # Initial velocity
         quat_0 = utils.euler_to_quat((0, 0, 0))
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
@@ -318,23 +318,23 @@ class Starship:
         #analysis.generate_velocity_plot(include_vz=False)
         #analysis.generate_position_plot()
         #analysis.generate_euler_angle_plot()
-        analysis.generate_angular_velocity_plot()
+        #analysis.generate_angular_velocity_plot()
         #analysis.generate_quat_norm_plot()
         #analysis.generate_angle_of_attack_plot()
         #analysis.generate_true_deflections_plot()
 
         vv = VehicleVisualizer(self.vehicle)
-        vv.init_aero_actors(opacity=0.6)
-        vv.init_prop_actors(opacity=0.9, color='grey')
+        vv.init_aero_actors(opacity=1)
+        vv.init_prop_actors(opacity=1, color='grey')
         #vv.init_debug(size=4)
         #vv.show()
-        #vv.add_grid()
+        vv.add_grid()
         #self.vehicle.prop_components[0].update_dynamic_transform(initial_state)
 
         #vv.update_actors(initial_state, np.array([0, 0, 0, 0, 0]), np.array([1, 0, 0]))
         #vv.generate_square_traj()
         #vv.show()
-        #vv.animate(log, cam_distance=80, zoom=1.5)
+        vv.animate(log, cam_distance=80, zoom=1.5)
 
 
 

@@ -5,7 +5,6 @@ import numdifftools as nd
 from scipy.optimize import minimize
 import control as ct
 from matplotlib import pyplot as plt
-from FlightCanvas.control.controller import Controller
 
 
 class Trimpoint:
