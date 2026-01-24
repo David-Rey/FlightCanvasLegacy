@@ -285,7 +285,7 @@ class Starship:
         tf = 10
         flight = Flight(self.vehicle, tf, dt=dt)
 
-        con = BellyFlopController(self.vehicle.vehicle_dynamics)
+
         #z_guess = np.array([-60, 0, np.deg2rad(12)])
         #trim.get_trimpoint(z_guess)
         #trim.init_LQR()
@@ -304,16 +304,20 @@ class Starship:
         #initial_state[2] = 800
         #initial_state[11] = 0.001
         pos_0 = np.array([0, 0, 50])  # Initial position
-        vel_0 = np.array([0, 0, 0])  # Initial velocity
+        vel_0 = np.array([0, 0, -60])  # Initial velocity
         quat_0 = utils.euler_to_quat((0, 0, 0))
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 
+        con = BellyFlopController(self.vehicle)
+        M_b = np.array([0, 0, 0])
+        con.get_flap_allocation(initial_state, M_b)
+
         #trim.draw_wrench_space(initial_state)
 
-        flight.run_sim(initial_state, log)
+        #flight.run_sim(initial_state, log)
 
-        analysis = Analysis(log)
+        #analysis = Analysis(log)
         #analysis.generate_control_plot()
         #analysis.generate_velocity_plot(include_vz=False)
         #analysis.generate_position_plot()
@@ -323,18 +327,18 @@ class Starship:
         #analysis.generate_angle_of_attack_plot()
         #analysis.generate_true_deflections_plot()
 
-        vv = VehicleVisualizer(self.vehicle)
-        vv.init_aero_actors(opacity=1)
-        vv.init_prop_actors(opacity=1, color='grey')
+        #vv = VehicleVisualizer(self.vehicle)
+        #vv.init_aero_actors(opacity=1)
+        #vv.init_prop_actors(opacity=1, color='grey')
         #vv.init_debug(size=4)
         #vv.show()
-        vv.add_grid()
+        #vv.add_grid()
         #self.vehicle.prop_components[0].update_dynamic_transform(initial_state)
 
         #vv.update_actors(initial_state, np.array([0, 0, 0, 0, 0]), np.array([1, 0, 0]))
         #vv.generate_square_traj()
         #vv.show()
-        vv.animate(log, cam_distance=80, zoom=1.5)
+        #vv.animate(log, cam_distance=80, zoom=1.5)
 
 
 
