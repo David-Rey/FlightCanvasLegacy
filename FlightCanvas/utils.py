@@ -122,11 +122,11 @@ def plot_arrow_from_points(
 
     # Calculate the fractional radii required by pv.Arrow
     # These are relative to the 'scale' argument (which is the total arrow length)
-    fractional_shaft_radius = shaft_radius / arrow_length
-    fractional_tip_radius = tip_radius / arrow_length
+    fractional_shaft_radius = shaft_radius / float(arrow_length)
+    fractional_tip_radius = tip_radius / float(arrow_length)
 
     # Ensure tip length is not larger than arrow length (fractional)
-    tip_length = tip_length_ratio * arrow_length
+    tip_length = tip_length_ratio * float(arrow_length)
 
     # Create the arrow mesh
     arrow_mesh = pv.Arrow(
@@ -673,18 +673,46 @@ def quat_multiply(
         return np.array([w, x, y, z])
 
 
-def update_dynamic_transform(state: np.ndarray) -> np.ndarray:
+def quat_to_euler(
+        q: Union[np.ndarray, List[float], ca.MX]
+) -> Union[np.ndarray, ca.MX]:
     """
-    Updates the component's dynamic transformation matrix used for animation
-    :param state: The current state of the vehicle (position, velocity, quaternion, angular_velocity)
+    Converts a quaternion to Euler angles (Yaw, Pitch, Roll) using the 3-2-1 sequence.
+    Supports both NumPy and CasADi types.
+
+    Convention: [w, x, y, z] (scalar first)
+    Returns: [roll, pitch, yaw] in radians
     """
+    # Detect if input is CasADi
+    is_casadi = isinstance(q, (ca.SX, ca.MX))
 
-    pos_I = state[:3]  # Position in the inertial frame
-    quat = state[6:10]  # Orientation as a quaternion
+    # Extract components
+    w, x, y, z = q[0], q[1], q[2], q[3]
 
-    # Construct a transformation matrix
-    R = dir_cosine_np(quat)
-    static_to_dynamic_transform = np.eye(4)
-    static_to_dynamic_transform[:3, 3] = pos_I
-    static_to_dynamic_transform[:3, :3] = R
-    return static_to_dynamic_transform
+    # Use the appropriate math library
+    math = ca if is_casadi else np
+
+    # Roll (x-axis rotation)
+    sinr_cosp = 2 * (w * x + y * z)
+    cosr_cosp = 1 - 2 * (x ** 2 + y ** 2)
+    roll = math.atan2(sinr_cosp, cosr_cosp)
+
+    # Pitch (y-axis rotation)
+    sinp = 2 * (w * y - z * x)
+    # Numerical clipping to prevent NaNs if sinp is slightly out of range [-1, 1]
+    if is_casadi:
+        # CasADi logic for clipping
+        sinp = ca.if_else(sinp > 1.0, 1.0, ca.if_else(sinp < -1.0, -1.0, sinp))
+        pitch = ca.asin(sinp)
+    else:
+        pitch = np.arcsin(np.clip(sinp, -1.0, 1.0))
+
+    # Yaw (z-axis rotation)
+    siny_cosp = 2 * (w * z + x * y)
+    cosy_cosp = 1 - 2 * (y ** 2 + z ** 2)
+    yaw = math.atan2(siny_cosp, cosy_cosp)
+
+    if is_casadi:
+        return ca.vertcat(roll, pitch, yaw)
+    else:
+        return np.array([roll, pitch, yaw])

@@ -107,13 +107,13 @@ class BuildupManager:
         sanitized_name = self.name.replace(" ", "_")
         F_b_interpolant = ca.interpolant(
             f'{sanitized_name}_ForcesLookup',
-            'linear',
+            'bspline',
             grid_axes,
             F_b_data_flat
         )
         M_b_interpolant = ca.interpolant(
             f'{sanitized_name}_MomentsLookup',
-            'linear',
+            'bspline',
             grid_axes,
             M_b_data_flat
         )

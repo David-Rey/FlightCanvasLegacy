@@ -8,7 +8,7 @@ import numpy as np
 import pyvista as pv
 
 from FlightCanvas import utils
-from FlightCanvas.vehicle.actuator_dynamics import Actuator
+from FlightCanvas.control.siso_system import SISOSystem
 from FlightCanvas.components.component import Component
 from FlightCanvas.buildup.buildup_manager import BuildupManager
 
@@ -27,7 +27,7 @@ class AeroComponent(Component, ABC):
             control_pivot=None,
             is_prime=True,
             symmetric_comp: Optional['AeroComponent'] = None,
-            actuator_model: Optional[Actuator] = None
+            actuator_model: Optional[SISOSystem] = None
     ):
         """
         Initializes an AeroComponent object
@@ -71,7 +71,7 @@ class AeroComponent(Component, ABC):
         self.control_pivot_actor = None
         self.force_actors = []
 
-    def set_actuator(self, actuator: Actuator):
+    def set_actuator(self, actuator: SISOSystem):
         """
         Sets the actuator for the given AeroComponent object
         :param actuator: The actuator object

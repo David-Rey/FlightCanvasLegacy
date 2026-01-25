@@ -1,12 +1,14 @@
 from FlightCanvas.analysis.log import Log
 from FlightCanvas.vehicle.aero_vehicle import AeroVehicle
+from FlightCanvas.control.base_controller import BaseController
 import numpy as np
 import FlightCanvas.utils as utils
 
 
 class Flight:
-    def __init__(self, aero_vehicle: AeroVehicle, final_time, dt=0.01, gravity=True):
+    def __init__(self, aero_vehicle: AeroVehicle, controller: BaseController, final_time: float, dt=0.01, gravity=True):
         self.aero_vehicle = aero_vehicle
+        self.controller = controller
         self.final_time = final_time
         self.dt = dt
         self.gravity = gravity
@@ -22,8 +24,11 @@ class Flight:
         time = 0.0
         log.initialize_timestep(time)
         state = init_state
-        deflection_control = np.array([0, 0, 0, 0])
-        prop_control = np.tile(np.array([0, 0, 0]), self.aero_vehicle.num_prop_components)
+
+        deflection_control, prop_control = self.controller.get_control(state)
+
+        #deflection_control = np.array([0, 0, 0, 0])
+        #prop_control = np.tile(np.array([0, 0, 0]), self.aero_vehicle.num_prop_components)
 
         states_dot = self.aero_vehicle.dynamics(state, deflection_control, prop_control)
 
@@ -36,6 +41,8 @@ class Flight:
         for i in range(1, self.steps):
             time = i * self.dt
             log.initialize_timestep(time)
+
+            deflection_control, prop_control = self.controller.get_control(state)
 
             aero_vehicle_dyn = lambda state: self.aero_vehicle.dynamics(state, deflection_control, prop_control)
 

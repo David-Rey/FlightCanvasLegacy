@@ -6,7 +6,7 @@ import aerosandbox.numpy as np
 
 from .aero_component import AeroComponent
 from FlightCanvas import utils
-from FlightCanvas.vehicle.actuator_dynamics import Actuator
+from FlightCanvas.control.siso_system import SISOSystem
 
 
 class AeroWing(AeroComponent):
@@ -24,7 +24,7 @@ class AeroWing(AeroComponent):
         xyz_ref=np.array([0., 0., 0.]),
         is_prime: bool = True,
         symmetric_comp: Optional['AeroComponent'] = None,
-        actuator_model: Optional[Actuator] = None,
+        actuator_model: Optional[SISOSystem] = None,
         symmetry_type=None,
         **kwargs
     ):
@@ -75,7 +75,7 @@ def create_planar_wing_pair(
     translation: Union[np.ndarray, List[float]] = (0, 0, 0),
     ref_direction: Union[np.ndarray, List[float]] = (1, 0, 0),
     control_pivot=None,
-    actuator_model: Optional[Actuator] = None,
+    actuator_model: Optional[SISOSystem] = None,
     **kwargs
 ) -> List[AeroWing]:
     """
@@ -142,7 +142,7 @@ def create_axial_wing_pair(
     translation: Union[np.ndarray, List[float]] = (0, 0, 0),
     ref_direction: Union[np.ndarray, List[float]] = (1, 0, 0),
     control_pivot: Union[np.ndarray, List[float]] = None,
-    actuator_model: Optional[Actuator] = None,
+    actuator_model: Optional[SISOSystem] = None,
     num_wings: int = 2,
     **kwargs
 ) -> List[AeroWing]:

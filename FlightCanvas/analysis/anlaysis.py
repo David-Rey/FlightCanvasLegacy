@@ -87,7 +87,7 @@ class Analysis:
         rot = R.from_quat(quat_matrix)
         euler = rot.as_euler('zyx', degrees=True)  # Returns (N, 3) matrix
 
-        pitch = np.rad2deg(np.arcsin(2 * (q3 * q1 - q2 * q0)))
+        #pitch = np.rad2deg(np.arcsin(2 * (q3 * q1 - q2 * q0)))
 
         # Plotting
         plt.figure(figsize=(10, 6))

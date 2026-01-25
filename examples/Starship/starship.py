@@ -11,7 +11,7 @@ from FlightCanvas.analysis.log import Log
 from FlightCanvas.analysis.anlaysis import Analysis
 from FlightCanvas.analysis.vehicle_visualizer import VehicleVisualizer
 from examples.Starship.control.bellyflop_controller import BellyFlopController
-from FlightCanvas.vehicle.actuator_dynamics import Actuator
+from FlightCanvas.control.siso_system import SISOSystem
 from FlightCanvas import utils
 
 from typing import Dict, List
@@ -166,7 +166,7 @@ class Starship:
             translation=[5 - self.cg_x, 2.9, 0],
             ref_direction=[1, 0.18, 0],
             control_pivot=[1, 0.18, 0],
-            actuator_model=Actuator([1], [0.1, 1])
+            actuator_model=SISOSystem([1], [0.1, 1])
         )
 
     def _create_back_flaps(self) -> List[AeroWing]:
@@ -184,7 +184,7 @@ class Starship:
             translation=[35 - self.cg_x, 4.5, 0],
             ref_direction=[1, 0, 0],
             control_pivot=[1, 0, 0],
-            actuator_model=Actuator([1], [0.1, 1])
+            actuator_model=SISOSystem([1], [0.1, 1])
         )
 
     def _create_rocket_engine(self) -> List[Propulsion]:
@@ -283,8 +283,6 @@ class Starship:
 
         dt = 0.01
         tf = 10
-        flight = Flight(self.vehicle, tf, dt=dt)
-
 
         #z_guess = np.array([-60, 0, np.deg2rad(12)])
         #trim.get_trimpoint(z_guess)
@@ -303,25 +301,33 @@ class Starship:
 
         #initial_state[2] = 800
         #initial_state[11] = 0.001
-        pos_0 = np.array([0, 0, 50])  # Initial position
+        pos_0 = np.array([0, 0, 1000])  # Initial position
         vel_0 = np.array([0, 0, -60])  # Initial velocity
         quat_0 = utils.euler_to_quat((0, 0, 0))
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 
-        con = BellyFlopController(self.vehicle)
-        M_b = np.array([0, 0, 0])
-        con.get_flap_allocation(initial_state, M_b)
+        controller = BellyFlopController(self.vehicle.vehicle_dynamics)
+        controller.init_controller(dt)
+        controller.get_control(initial_state)
+        #controller.debug_control_authority(initial_state, np.array([0, 0, 0]))
+
+        #controller.draw_wrench_space(initial_state)
+
+        flight = Flight(self.vehicle, controller, tf, dt=dt)
+
+        #M_b = np.array([0, 3000, 0])
+        #con.get_flap_allocation(initial_state, M_b)
 
         #trim.draw_wrench_space(initial_state)
 
-        #flight.run_sim(initial_state, log)
+        flight.run_sim(initial_state, log)
 
-        #analysis = Analysis(log)
-        #analysis.generate_control_plot()
+        analysis = Analysis(log)
+        analysis.generate_control_plot()
         #analysis.generate_velocity_plot(include_vz=False)
-        #analysis.generate_position_plot()
-        #analysis.generate_euler_angle_plot()
+        analysis.generate_position_plot()
+        analysis.generate_euler_angle_plot()
         #analysis.generate_angular_velocity_plot()
         #analysis.generate_quat_norm_plot()
         #analysis.generate_angle_of_attack_plot()
@@ -339,8 +345,6 @@ class Starship:
         #vv.generate_square_traj()
         #vv.show()
         #vv.animate(log, cam_distance=80, zoom=1.5)
-
-
 
 if __name__ == '__main__':
     # Create an instance of the entire Starship model
