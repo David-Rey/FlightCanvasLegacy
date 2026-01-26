@@ -114,7 +114,7 @@ class Starship:
         F_b_list = list(F_b_tuple)
 
         # Access the moment value and update it within the new list
-        F_b_list[1] = F_b_list[1] * 0.50
+        F_b_list[1] = F_b_list[1] * 0.40
 
         for i in [1, 3]:
             F_b_temp = list(self.vehicle.components[i].buildup_manager.asb_data_static["F_b"])
@@ -216,16 +216,28 @@ class Starship:
         :return: Control mapping from abstract commands to flap deflections
         """
         return {
-            "Front Flap Control": {
+            "pitch starship_control": {
                 "Front Flap": 1.0,
-            },
-            "Front Flap Star Control": {
                 "Front Flap Star": 1.0,
+                "Aft Flap": -1.0,
+                "Aft Flap Star": -1.0
             },
-            "Back Flap Control": {
+            "roll starship_control": {
+                "Front Flap": 1.0,
+                "Front Flap Star": -1.0,
                 "Aft Flap": 1.0,
+                "Aft Flap Star": -1.0
             },
-            "Back Flap Star Control": {
+            "yaw starship_control": {
+                "Front Flap": -1.0,
+                "Front Flap Star": 1.0,
+                "Aft Flap": 1.0,
+                "Aft Flap Star": -1.0
+            },
+            "drag starship_control": {
+                "Front Flap": 1.0,
+                "Front Flap Star": 1.0,
+                "Aft Flap": 1.0,
                 "Aft Flap Star": 1.0
             }
         }
@@ -302,17 +314,17 @@ class Starship:
         #initial_state[2] = 800
         #initial_state[11] = 0.001
         pos_0 = np.array([0, 0, 1000])  # Initial position
-        vel_0 = np.array([0, 0, -60])  # Initial velocity
-        quat_0 = utils.euler_to_quat((0, 0, 0))
+        vel_0 = np.array([0, 0, -65])  # Initial velocity
+        quat_0 = utils.euler_to_quat((0, 5, 0))
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 
         controller = BellyFlopController(self.vehicle.vehicle_dynamics)
-        controller.init_controller(dt)
-        controller.get_control(initial_state)
+        controller.draw_wrench_space(initial_state)
+        #controller.init_controller(dt)
+        #controller.get_control(initial_state)
         #controller.debug_control_authority(initial_state, np.array([0, 0, 0]))
 
-        #controller.draw_wrench_space(initial_state)
 
         flight = Flight(self.vehicle, controller, tf, dt=dt)
 
@@ -321,13 +333,13 @@ class Starship:
 
         #trim.draw_wrench_space(initial_state)
 
-        flight.run_sim(initial_state, log)
+        #flight.run_sim(initial_state, log)
 
-        analysis = Analysis(log)
-        analysis.generate_control_plot()
+        #analysis = Analysis(log)
+        #analysis.generate_control_plot()
         #analysis.generate_velocity_plot(include_vz=False)
-        analysis.generate_position_plot()
-        analysis.generate_euler_angle_plot()
+        #analysis.generate_position_plot()
+        #analysis.generate_euler_angle_plot()
         #analysis.generate_angular_velocity_plot()
         #analysis.generate_quat_norm_plot()
         #analysis.generate_angle_of_attack_plot()
