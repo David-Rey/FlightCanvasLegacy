@@ -114,7 +114,7 @@ class Starship:
         F_b_list = list(F_b_tuple)
 
         # Access the moment value and update it within the new list
-        F_b_list[1] = F_b_list[1] * 0.40
+        F_b_list[1] = F_b_list[1] * 0.30
 
         for i in [1, 3]:
             F_b_temp = list(self.vehicle.components[i].buildup_manager.asb_data_static["F_b"])
@@ -314,8 +314,8 @@ class Starship:
         #initial_state[2] = 800
         #initial_state[11] = 0.001
         pos_0 = np.array([0, 0, 1000])  # Initial position
-        vel_0 = np.array([0, 0, -65])  # Initial velocity
-        quat_0 = utils.euler_to_quat((0, 5, 0))
+        vel_0 = np.array([0, 5, -68])  # Body velocity
+        quat_0 = utils.euler_to_quat((0, 0, 0))
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 

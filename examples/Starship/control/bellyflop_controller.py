@@ -172,20 +172,29 @@ class BellyFlopController(BaseController):
         return flap_control, prop_control
 
     def generate_wrench_set(self, state: np.ndarray) -> np.ndarray:
-        angles = np.deg2rad([-20, 20])
+        angles = np.deg2rad([-15, 15])
         num_points = 100
         num_flaps = 3
         flap_angles = np.linspace(angles[0], angles[1], num_points)
+        default_control = np.deg2rad(np.array([0, 0, 0, 25]))
 
         M = np.zeros((num_flaps, num_points, 3))
         for i in range(num_flaps):
             for j in range(num_points):
                 control = np.zeros(4)
-                control[3] = np.deg2rad(20)
+                control += default_control
                 control[i] = flap_angles[j]
                 deflections = self.vehicle_dynamics.allocation_matrix @ control
                 F_b, M_b = self.vehicle_dynamics.compute_aero_forces_and_moments(state, deflections)
                 M[i, j, :] = M_b
+
+        example_control = np.deg2rad(np.array([0, 0, 0, 25]))  # pitch, roll, yaw, drag
+        deflections = self.vehicle_dynamics.allocation_matrix @ example_control
+        F_b, M_b = self.vehicle_dynamics.compute_aero_forces_and_moments(state, deflections)
+        print(M_b)
+
+        #ex_M = M[1, -1, :] + M[2, -1, :]
+        #print(ex_M)
 
         return M
 
