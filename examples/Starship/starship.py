@@ -68,7 +68,6 @@ class Starship:
 
         # Load pre-computed aerodynamic data
         print("Loading aerodynamic buildup data...")
-        #self.vehicle.compute_buildup()
         try:
             self.vehicle.compute_buildup()
         except:
@@ -112,7 +111,7 @@ class Starship:
         self.vehicle.components[0].buildup_manager.asb_data_static["Cm"] = CA_temp * 0.4
         coeffs = ["CA", "Cl", "Cn", "CS"]
 
-        for i in [1, 3]:
+        for i in [0, 1, 3]:
             for key in coeffs:
                 temp = self.vehicle.components[i].buildup_manager.asb_data_static[key]
                 self.vehicle.components[i].buildup_manager.asb_data_static[key] = temp * 0
@@ -203,34 +202,6 @@ class Starship:
         Define how abstract starship_control commands map to individual flap deflections
         :return: Control mapping from abstract commands to flap deflections
         """
-        '''
-        return {
-            "pitch starship_control": {
-                "Front Flap": 1.0,
-                "Front Flap Star": 1.0,
-                "Aft Flap": -1.0,
-                "Aft Flap Star": -1.0
-            },
-            "roll starship_control": {
-                "Front Flap": 1.0,
-                "Front Flap Star": -1.0,
-                "Aft Flap": 1.0,
-                "Aft Flap Star": -1.0
-            },
-            "yaw starship_control": {
-                "Front Flap": -1.0,
-                "Front Flap Star": 1.0,
-                "Aft Flap": 1.0,
-                "Aft Flap Star": -1.0
-            },
-            "drag starship_control": {
-                "Front Flap": 1.0,
-                "Front Flap Star": 1.0,
-                "Aft Flap": 1.0,
-                "Aft Flap Star": 1.0
-            }
-        }
-    '''
         return {
             "fl": {
                 "Front Flap": 1.0,
@@ -318,7 +289,7 @@ class Starship:
         #initial_state[2] = 800
         #initial_state[11] = 0.001
         pos_0 = np.array([0, 0, 1000])  # Initial position
-        vel_0 = np.array([0, 0, -60])  # Body velocity
+        vel_0 = np.array([0, 10, -60])  # Body velocity
         quat_0 = utils.euler_to_quat((0, 0, 0))
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
@@ -365,8 +336,6 @@ class Starship:
 if __name__ == '__main__':
     # Create an instance of the entire Starship model
     starship = Starship()
-    #starship.vehicle.components[1].buildup_manager.verify_np_vs_ca()
-    #starship.vehicle.components[1].buildup_manager.verify_coefficient_roundtrip()
     #starship.save_buildup_figs()
 
     starship.run_sim()
