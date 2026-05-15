@@ -10,7 +10,7 @@ from FlightCanvas.Flight.flight import Flight
 from FlightCanvas.analysis.log import Log
 from FlightCanvas.analysis.anlaysis import Analysis
 from FlightCanvas.analysis.vehicle_visualizer import VehicleVisualizer
-from examples.Starship.control.bellyflop_controller import BellyFlopController
+from examples.Starship.control.starship_controller import StarshipController
 from FlightCanvas.control.siso_system import SISOSystem
 from FlightCanvas import utils
 
@@ -68,8 +68,9 @@ class Starship:
 
         # Load pre-computed aerodynamic data
         print("Loading aerodynamic buildup data...")
+        #self.vehicle.compute_buildup()
         try:
-            self.vehicle.load_buildup()
+            self.vehicle.compute_buildup()
         except:
             print("Build up data not found. Creating new aerodynamic buildup data...")
             self.vehicle.compute_buildup()
@@ -215,6 +216,7 @@ class Starship:
         Define how abstract starship_control commands map to individual flap deflections
         :return: Control mapping from abstract commands to flap deflections
         """
+        '''
         return {
             "pitch starship_control": {
                 "Front Flap": 1.0,
@@ -238,6 +240,21 @@ class Starship:
                 "Front Flap": 1.0,
                 "Front Flap Star": 1.0,
                 "Aft Flap": 1.0,
+                "Aft Flap Star": 1.0
+            }
+        }
+    '''
+        return {
+            "fl": {
+                "Front Flap": 1.0,
+            },
+            "fr": {
+                "Front Flap Star": 1.0,
+            },
+            "al": {
+                "Aft Flap": 1.0,
+            },
+            "af": {
                 "Aft Flap Star": 1.0
             }
         }
@@ -314,19 +331,19 @@ class Starship:
         #initial_state[2] = 800
         #initial_state[11] = 0.001
         pos_0 = np.array([0, 0, 1000])  # Initial position
-        vel_0 = np.array([0, 5, -68])  # Body velocity
+        vel_0 = np.array([0, 0, -60])  # Body velocity
         quat_0 = utils.euler_to_quat((0, 0, 0))
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 
-        controller = BellyFlopController(self.vehicle.vehicle_dynamics)
+        controller = StarshipController(self.vehicle.vehicle_dynamics)
         controller.draw_wrench_space(initial_state)
         #controller.init_controller(dt)
         #controller.get_control(initial_state)
         #controller.debug_control_authority(initial_state, np.array([0, 0, 0]))
 
 
-        flight = Flight(self.vehicle, controller, tf, dt=dt)
+        #flight = Flight(self.vehicle, controller, tf, dt=dt)
 
         #M_b = np.array([0, 3000, 0])
         #con.get_flap_allocation(initial_state, M_b)
@@ -361,6 +378,7 @@ class Starship:
 if __name__ == '__main__':
     # Create an instance of the entire Starship model
     starship = Starship()
+    #starship.vehicle.components[0].buildup_manager.verify_np_vs_ca()
     #starship.save_buildup_figs()
 
     starship.run_sim()
