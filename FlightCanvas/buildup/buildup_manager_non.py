@@ -81,6 +81,11 @@ class BuildupManagerNon:
         return F_b, M_b
 
     def _create_aero_interpolants(self):
+        """
+
+        Returns:
+
+        """
         # Get grid points in radians
         alpha_lin_rad = np.deg2rad(self.alpha_grid[:, 0])
         beta_lin_rad = np.deg2rad(self.beta_grid[0, :])
@@ -111,18 +116,12 @@ class BuildupManagerNon:
             self.aero_grid_interpolants[key] = RegularGridInterpolator(
                 (alpha_lin_rad, beta_lin_rad),
                 data_grid,
-                method='linear',  # 'linear' is the default, which is what your math does
+                method='linear',
             )
 
     def _get_coef_ca(self, alpha: ca.MX, beta: ca.MX) -> ca.MX:
         """
         TODO
-        Args:
-            alpha:
-            beta:
-
-        Returns:
-
         """
         if self.asb_data_static is None:
             raise RuntimeError("Aero data not available. Run compute_buildup() or load_buildup() first.")
@@ -148,13 +147,6 @@ class BuildupManagerNon:
     def _get_forces_and_moments_ca(self, alpha: ca.MX, beta: ca.MX, speed: ca.MX) -> tuple[ca.MX, ca.MX]:
         """
         TODO
-        Args:
-            alpha:
-            beta:
-            speed:
-
-        Returns:
-
         """
         coeffs = self._get_coef_ca(alpha, beta)
 
@@ -244,7 +236,7 @@ class BuildupManagerNon:
         with open(full_path, 'rb') as file:
             loaded_data = pickle.load(file)
 
-        # set variables form the loaded file to current object
+        # set variables form the loaded file to the current object
         self.name = loaded_data['name']
         self.alpha_grid_size = loaded_data['alpha_grid_size']
         self.beta_grid_size = loaded_data['beta_grid_size']
@@ -272,7 +264,9 @@ class BuildupManagerNon:
             self.draw_buildup_figs(key, folder_path)
 
     def draw_buildup_figs(self, key: str, folder_path: str):
-
+        """
+        TODO
+        """
         data = self.asb_data_static[key]
         title = f"`{self.name}` {key}"
         file_name = f"{self.name}_{key}.png"
@@ -310,10 +304,9 @@ class BuildupManagerNon:
         beta_rad = np.deg2rad(-30)
         print(f"--- Running Verification (alpha={alpha_rad:.3f} rad, beta={beta_rad:.3f} rad, V={speed} m/s) ---")
 
-        # 1. Evaluate NumPy
+        # Evaluate NumPy
         F_b_np, M_b_np = self._get_forces_and_moments_np(alpha_rad, beta_rad, speed)
 
-        # 2. Evaluate CasADi
         # We can pass CasADi DM (Data Matrix / numeric values) directly into the symbolic function
         F_b_ca_sym, M_b_ca_sym = self._get_forces_and_moments_ca(ca.DM(alpha_rad), ca.DM(beta_rad), ca.DM(speed))
 

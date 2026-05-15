@@ -13,7 +13,7 @@ from FlightCanvas.analysis.vehicle_visualizer import VehicleVisualizer
 from examples.Starship.control.starship_controller import StarshipController
 from FlightCanvas.control.siso_system import SISOSystem
 from FlightCanvas import utils
-
+from scipy.ndimage import gaussian_filter
 from typing import Dict, List
 
 
@@ -109,12 +109,22 @@ class Starship:
         """
         CA_temp = self.vehicle.components[0].buildup_manager.asb_data_static["Cm"]
         self.vehicle.components[0].buildup_manager.asb_data_static["Cm"] = CA_temp * 0.4
-        coeffs = ["CA", "Cl", "Cn", "CS"]
 
-        for i in [0, 1, 3]:
-            for key in coeffs:
+        CA_temp = self.vehicle.components[0].buildup_manager.asb_data_static["Cn"]
+        self.vehicle.components[0].buildup_manager.asb_data_static["Cn"] = CA_temp * 0
+
+        for i in [1, 3]:
+            for key in ["CA", "Cl", "Cn", "CS"]:
                 temp = self.vehicle.components[i].buildup_manager.asb_data_static[key]
                 self.vehicle.components[i].buildup_manager.asb_data_static[key] = temp * 0
+
+            # add smoothing for front and aft flap
+            for key in ["C_N", "Cm"]:
+                temp_Cm = self.vehicle.components[i].buildup_manager.asb_data_static[key]
+                temp_Cm_2d = np.reshape(temp_Cm, self.vehicle.components[i].buildup_manager.alpha_grid.shape)
+                smoothed_Cm_2d = gaussian_filter(temp_Cm_2d, sigma=4.0)
+                smoothed_Cm_1d = smoothed_Cm_2d.flatten()
+                self.vehicle.components[i].buildup_manager.asb_data_static[key] = smoothed_Cm_1d
 
     def _create_body(self) -> AeroFuselage:
         """
@@ -289,13 +299,16 @@ class Starship:
         #initial_state[2] = 800
         #initial_state[11] = 0.001
         pos_0 = np.array([0, 0, 1000])  # Initial position
-        vel_0 = np.array([0, 10, -60])  # Body velocity
+        vel_0 = np.array([0, 0, -60])  # Body velocity
         quat_0 = utils.euler_to_quat((0, 0, 0))
         omega_0 = np.array([0, 0, 0])  # Initial angular velocity
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 
         controller = StarshipController(self.vehicle.vehicle_dynamics)
-        controller.draw_wrench_space(initial_state)
+        #controller.draw_wrench_space(initial_state)
+        controller.curve_fit(initial_state)
+        controller.test_moment(initial_state)
+        controller.draw_3d_wrench_space(initial_state)
         #controller.init_controller(dt)
         #controller.get_control(initial_state)
         #controller.debug_control_authority(initial_state, np.array([0, 0, 0]))

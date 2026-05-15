@@ -1,18 +1,188 @@
 from FlightCanvas.vehicle.vehicle_dynamics import VehicleDynamics
+from FlightCanvas.components.aero_component import AeroComponent
 import numpy as np
 import matplotlib.pyplot as plt
+import numpy.polynomial.chebyshev as cheb
+from numpy.polynomial import Polynomial
+import sympy as sp
 
 
 class StarshipController:
     def __init__(self, vehicle_dynamics: VehicleDynamics):
         self.vehicle_dynamics = vehicle_dynamics
 
+        self.num_points = 100
+        self.angles = np.deg2rad([10, 90])
+        self.flap_angles = np.linspace(self.angles[0], self.angles[1], self.num_points)
 
-    def draw_wrench_space(self, state: np.ndarray):
+        self.symbolic_moment_front = {}
+        self.symbolic_moment_aft = {}
+        self.symbolic_moment_diff_front = {}
+        self.symbolic_moment_diff_aft = {}
+
+    def test_moment(self, state: np.ndarray):
+        fuse_comp = self.vehicle_dynamics.aero_components[0]
+        _, moment_offset = self.nondim_force_and_moment(state, 0, fuse_comp)
+
+        target_moment = np.array([0.0, 100.0, 200.0])
+        print(f"Target Moment for 4 flaps: {target_moment}\n")
+
+        deflection = np.deg2rad(np.array([20, 20, 20, 20]))
+
+        iters = 12
+        k = 0.3
+        for i in range(iters):
+            print(f"Iteration {i}")
+            print(f"Flap position: {deflection}")
+
+            M_del_d1 = np.array([0.0, 0.0, 0.0])
+            M_del_d3 = np.array([0.0, 0.0, 0.0])
+            keys = ["x", "y", "z"]
+            for i in range(3):
+                M_del_d1[i] = self.symbolic_moment_diff_front[keys[i]](deflection[0])
+                M_del_d3[i] = self.symbolic_moment_diff_aft[keys[i]](deflection[2])
+
+            M_del_d2 = M_del_d1 * np.array([-1, 1, -1])
+            M_del_d4 = M_del_d3 * np.array([-1, 1, -1])
+
+            deflections = self.vehicle_dynamics.allocation_matrix @ deflection
+            _, current_moment_true = self.vehicle_dynamics.compute_aero_forces_and_moments(state, deflections)
+            current_moment = current_moment_true / self.get_dyn_pressure(state)
+
+            print(f"Current Moment for vehicle flaps: {current_moment}\n")
+
+            delta_M = target_moment - current_moment
+
+            G = np.column_stack((M_del_d1, M_del_d2, M_del_d3, M_del_d4))
+            G_pinv = np.linalg.pinv(G)
+            delta_u = G_pinv @ delta_M
+            deflection = deflection + (delta_u * k)
+
+    def curve_fit(self, state: np.ndarray):
+
+        comp_front = self.vehicle_dynamics.aero_components[1]
+        comp_aft = self.vehicle_dynamics.aero_components[3]
+        symbolic_moment_front_sp, symbolic_moment_diff_front_sp, M_1 = self.get_symbolic_fit(state, comp_front)
+        symbolic_moment_aft_sp, symbolic_moment_diff_aft_sp, M_3 = self.get_symbolic_fit(state, comp_aft)
+
+        delta = sp.Symbol('delta')
+        for key in ["x", "y", "z"]:
+            self.symbolic_moment_front[key] = sp.lambdify(delta, symbolic_moment_front_sp[key], 'numpy')
+            self.symbolic_moment_aft[key] = sp.lambdify(delta, symbolic_moment_aft_sp[key], 'numpy')
+            self.symbolic_moment_diff_front[key] = sp.lambdify(delta, symbolic_moment_diff_front_sp[key], 'numpy')
+            self.symbolic_moment_diff_aft[key] = sp.lambdify(delta, symbolic_moment_diff_aft_sp[key], 'numpy')
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 4), sharex=True)
+        ax1.plot(self.flap_angles, M_1[:, 0], color='red')
+        ax1.plot(self.flap_angles, M_1[:, 1], color='green')
+        ax1.plot(self.flap_angles, M_1[:, 2], color='blue')
+        ax1.set_ylabel('Moment (N-m)')
+        ax1.set_xlabel('Angle (rad)')
+        ax1.grid(True)
+
+        ax2.plot(self.flap_angles, M_3[:, 0], color='red')
+        ax2.plot(self.flap_angles, M_3[:, 1], color='green')
+        ax2.plot(self.flap_angles, M_3[:, 2], color='blue')
+        ax2.set_ylabel('Moment (N-m)')
+        ax2.set_xlabel('Angle (rad)')
+        ax2.grid(True)
+
+
+        '''
+        fig = plt.figure()
+        ax = fig.add_subplot()
+        ax.scatter(self.flap_angles, M_1[:, 0], color='lightgray', label='Raw Data', s=15)
+        ax.plot(self.flap_angles, moments_fit, 'b-', label=f'Chebyshev Fit', linewidth=2)
+        ax.set_ylabel('Moment (N-m)')
+        ax.set_title('Chebyshev Polynomial Curve Fit')
+        ax.legend()
+        ax.grid(True)
+        plt.show()
+        '''
+
+    def get_symbolic_fit(self, state: np.ndarray, comp: AeroComponent) -> tuple[dict, dict, np.ndarray]:
+
+        M_1 = np.zeros((self.num_points, 3))
+
+        #speed = np.linalg.norm(state[3:6])
+        #rho = 1.225
+        #q = 0.5 * rho * speed ** 2
+        #qS = q * comp.asb_airplane.s_ref
+        #b = comp.asb_airplane.b_ref
+        #c = comp.asb_airplane.c_ref
+
+        for i in range(self.num_points):
+            #F_b, M_b = comp.get_forces_and_moments(state, self.flap_angles[i])
+            #M_1_non_dim = np.array([M_b[0] / b, M_b[1] / c, M_b[2] / b]) / qS
+            _, M_1[i, :] = self.nondim_force_and_moment(state, self.flap_angles[i], comp)
+
+        angle_min = self.flap_angles.min()
+        angle_max = self.flap_angles.max()
+        angles_norm = (2.0 * self.flap_angles - (angle_max + angle_min)) / (angle_max - angle_min)
+        degree = 4
+        delta = sp.Symbol('delta')
+
+        symbolic_moment = {}
+        symbolic_moment_diff = {}
+        keys = ["x", "y", "z"]
+
+        for i in range(3):
+            c_coeffs = cheb.chebfit(angles_norm, M_1[:, i], degree)
+            cheb_series = cheb.Chebyshev(c_coeffs, domain=[angle_min, angle_max])
+            poly_series = cheb_series.convert(kind=Polynomial)
+            std_coeffs = poly_series.coef
+
+            # Construct the symbolic polynomial
+            express = sum(c * delta ** i for i, c in enumerate(std_coeffs))
+            symbolic_moment[keys[i]] = express
+            symbolic_moment_diff[keys[i]] = sp.diff(express, delta)
+
+        return symbolic_moment, symbolic_moment_diff, M_1
+
+    def draw_wrench(self, state: np.ndarray):
+        num_points = 100
+        angles = np.deg2rad([5, 90])
+        flap_angles = np.linspace(angles[0], angles[1], num_points)
+        M_1 = np.zeros((num_points, 3))
+
+        comp = self.vehicle_dynamics.aero_components[1]
+
+        #qS = q * comp.asb_airplane.s_ref
+        #b = comp.asb_airplane.b_ref
+        #c = comp.asb_airplane.c_ref
+
+        for i in range(num_points):
+            #F_b, M_b = comp.get_forces_and_moments(state, flap_angles[i])
+            #M_1_non_dim = np.array([M_b[0] / b, M_b[1] / c, M_b[2] / b]) / qS
+            _, M_1[i, :] = self.nondim_force_and_moment(state, flap_angles[i], comp)
+            #M_1[i, :] = M_1_non_dim
+
+        fig = plt.figure()
+        ax = fig.add_subplot()
+        plt.plot(flap_angles, M_1[:, 0])
+        plt.plot(flap_angles, M_1[:, 1])
+        plt.plot(flap_angles, M_1[:, 2])
+        ax.set_xlabel('angle')
+        ax.set_ylabel('moment')
+        plt.show()
+
+    def get_dyn_pressure(self, state: np.ndarray) -> float:
+        rho = 1.225
+        speed = np.linalg.norm(state[3:6])
+        q = 0.5 * rho * speed ** 2
+        return q
+
+    def nondim_force_and_moment(self, state: np.ndarray, flap_angle: float, comp: AeroComponent):
+        q = self.get_dyn_pressure(state)
+        F_b, M_b = comp.get_forces_and_moments(state, flap_angle)
+        return F_b / q, M_b / q
+
+
+    def draw_3d_wrench_space(self, state: np.ndarray):
         default_control = np.deg2rad(np.array([0, 0, 0, 0]))
-        #true_def = self.vehicle_dynamics.allocation_matrix @ flap_def
+        q = self.get_dyn_pressure(state)
 
-        angles = np.deg2rad([5, 55])
+        angles = np.deg2rad([5, 90])
         num_points = 100
         num_flaps = 4
         flap_angles = np.linspace(angles[0], angles[1], num_points)
@@ -21,12 +191,13 @@ class StarshipController:
         for i in range(num_flaps):
             for j in range(num_points):
                 control = np.zeros(4)
+
                 control += default_control
                 control[i] = flap_angles[j]
                 deflections = self.vehicle_dynamics.allocation_matrix @ control
-                #F_b, M_b = self.vehicle_dynamics.compute_aero_forces_and_moments(state, deflections)
-                F_b, M_b = self.vehicle_dynamics.aero_components[i+1].get_forces_and_moments(state, flap_angles[j])
-                M[i, j, :] = M_b
+                F_b, M_b = self.vehicle_dynamics.compute_aero_forces_and_moments(state, deflections)
+                #F_b, M_b = self.vehicle_dynamics.aero_components[i+1].get_forces_and_moments(state, flap_angles[j])
+                M[i, j, :] = M_b / q
 
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
