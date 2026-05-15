@@ -10,7 +10,7 @@ import pyvista as pv
 from FlightCanvas import utils
 from FlightCanvas.control.siso_system import SISOSystem
 from FlightCanvas.components.component import Component
-from FlightCanvas.buildup.buildup_manager import BuildupManager
+from FlightCanvas.buildup.buildup_manager_non import BuildupManagerNon
 
 
 class AeroComponent(Component, ABC):
@@ -283,7 +283,7 @@ class AeroComponent(Component, ABC):
         :param component: The aerodynamic component to perform the buildup on
         """
         if self.is_prime:
-            self.buildup_manager = BuildupManager(self.name, vehicle_path, component)
+            self.buildup_manager = BuildupManagerNon(self.name, vehicle_path, component)
 
     def compute_buildup(self):
         """

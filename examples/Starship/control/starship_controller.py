@@ -9,10 +9,10 @@ class StarshipController:
 
 
     def draw_wrench_space(self, state: np.ndarray):
-        #flap_def = np.array([0, 0, 0, 0])
+        default_control = np.deg2rad(np.array([0, 0, 0, 0]))
         #true_def = self.vehicle_dynamics.allocation_matrix @ flap_def
 
-        angles = np.deg2rad([5, 45])
+        angles = np.deg2rad([0, 45])
         num_points = 100
         num_flaps = 4
         flap_angles = np.linspace(angles[0], angles[1], num_points)
@@ -21,7 +21,7 @@ class StarshipController:
         for i in range(num_flaps):
             for j in range(num_points):
                 control = np.zeros(4)
-                #control += default_control
+                control += default_control
                 control[i] = flap_angles[j]
                 deflections = self.vehicle_dynamics.allocation_matrix @ control
                 F_b, M_b = self.vehicle_dynamics.compute_aero_forces_and_moments(state, deflections)

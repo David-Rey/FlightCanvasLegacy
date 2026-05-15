@@ -108,27 +108,14 @@ class Starship:
         """
         Updates the body moments to get the cg to be reasonable
         """
-        # Retrieve the tuple from the dictionary
-        F_b_tuple = self.vehicle.components[0].buildup_manager.asb_data_static["M_b"]
-
-        # Convert the tuple to a list to make it mutable
-        F_b_list = list(F_b_tuple)
-
-        # Access the moment value and update it within the new list
-        F_b_list[1] = F_b_list[1] * 0.30
+        CA_temp = self.vehicle.components[0].buildup_manager.asb_data_static["Cm"]
+        self.vehicle.components[0].buildup_manager.asb_data_static["Cm"] = CA_temp * 0.4
+        coeffs = ["CA", "Cl", "Cn", "CS"]
 
         for i in [1, 3]:
-            F_b_temp = list(self.vehicle.components[i].buildup_manager.asb_data_static["F_b"])
-            M_b_temp = list(self.vehicle.components[i].buildup_manager.asb_data_static["M_b"])
-            F_b_temp[0] = F_b_temp[0] * 0
-            F_b_temp[1] = F_b_temp[1] * 0
-            M_b_temp[0] = M_b_temp[0] * 0
-            M_b_temp[2] = M_b_temp[2] * 0
-            self.vehicle.components[i].buildup_manager.asb_data_static["F_b"] = F_b_temp
-            self.vehicle.components[i].buildup_manager.asb_data_static["M_b"] = M_b_temp
-
-        # Reassign the updated list back to the dictionary
-        self.vehicle.components[0].buildup_manager.asb_data_static["M_b"] = F_b_list
+            for key in coeffs:
+                temp = self.vehicle.components[i].buildup_manager.asb_data_static[key]
+                self.vehicle.components[i].buildup_manager.asb_data_static[key] = temp * 0
 
     def _create_body(self) -> AeroFuselage:
         """
@@ -154,7 +141,7 @@ class Starship:
 
     def _create_front_flaps(self) -> List[AeroWing]:
         """
-        Creates the pair of front flap components
+        Creates a pair of front flap components
         """
         flap_airfoil = asb.Airfoil(coordinates=self._flat_plate_airfoil(thickness=0.02))
         front_flap_xsecs = [
@@ -378,7 +365,15 @@ class Starship:
 if __name__ == '__main__':
     # Create an instance of the entire Starship model
     starship = Starship()
-    #starship.vehicle.components[0].buildup_manager.verify_np_vs_ca()
+    #starship.vehicle.components[1].buildup_manager.verify_np_vs_ca()
+    #starship.vehicle.components[1].buildup_manager.verify_coefficient_roundtrip()
     #starship.save_buildup_figs()
 
     starship.run_sim()
+
+    #vv = VehicleVisualizer(starship.vehicle)
+    #vv.init_aero_actors(opacity=.5)
+    #vv.init_prop_actors(opacity=1, color='grey')
+    #vv.init_debug(size=4)
+    #vv.show()
+
