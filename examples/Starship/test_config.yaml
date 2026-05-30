@@ -1,0 +1,199 @@
+
+simulation_settings:
+  # Initial state
+  initial_position: [0, 0, 1000]  # ENU frame
+  initial_velocity: [0, 0, -40]   # Velocity in body frame
+  initial_rotation: [0, 0, 0]  # EulerAngles
+  initial_angular_rate: [0, 0, 0] # Always in body
+
+  # Simulation settings
+  time_step: 0.01  # 100 Hz
+  max_sim_time: 20  # max 20 seconds
+  stop_at_z: 2  # End simulation if position drops below z=2 meters. Set to null if stop is not needed
+
+  # Environment
+  wind_model: "none"  # none or static
+  turbulence: "none"
+  density_model: "static" # static or exponential
+
+vehicle:
+  name: "Starship"
+  wing_components:
+    # Front Flap
+    - name: "Front_Flap"
+      symmetry: "xz-plane"  # 'none', 'xz-plane' or 'x-axial'
+      translation: [5.0, 2.9, 0.0]
+      ref_direction: [ 1.0, 0.18, 0.0 ]
+      control_pivot: [ 1.0, 0.18, 0.0 ]
+      airfoil:
+        type: "flat_plate" # airfoil 'flat_plate' or 'NACA'
+        thickness: 0.02
+      xsecs:
+        - xyz_le: [0.0, 0.0, 0.0]
+          chord: 8.0
+        - xyz_le: [6.0, 4.8, 0.0]
+          chord: 2.5
+      actuator_model:
+        num: [ 1.0 ]
+        den: [ 0.1, 1.0 ]
+      mass_properties:
+        inert_mass: 1000
+        com: "auto"
+        moi: "auto"
+      aero_scale_factor:  # Scale a factor on coefficients. This argument is optional and the default value is 1
+        Cl: 1
+        Cm: 1
+        Cn: 1
+        CA: 1
+        CS: 1
+        CN: 1
+      aero_smoothing:
+        Cl: 0
+        Cm: 0
+        Cn: 0
+        CA: 0
+        CS: 0
+        CN: 0
+
+    # Aft Flap
+    - name: "Aft_Flap"
+      symmetry: "none"  # 'none', 'xz-plane' or 'x-axial'
+      translation: [35.0, 4.5, 0.0]
+      ref_direction: [ 1.0, 0.0, 0.0 ]
+      control_pivot: [ 1.0, 0.0, 0.0 ]
+      airfoil:
+        type: "flat_plate" # airfoil 'flat_plate' or 'NACA'
+        thickness: 0.02
+      xsecs:
+        - xyz_le: [0.0, 0.0, 0.0]
+          chord: 15.0
+        - xyz_le: [8.0, 5.8, 0.0]
+          chord: 6.0
+      actuator_model:
+        num: [ 1.0 ]
+        den: [ 0.1, 1.0 ]
+      mass_properties:
+        inert_mass: 1500
+        com: "auto"
+        moi: "auto"
+      aero_scale_factor: # Scale a factor on coefficients. This argument is optional and the default value is 1
+        Cl: 1
+        Cm: 1
+        Cn: 1
+        CA: 1
+        CS: 1
+        CN: 1
+      aero_smoothing:
+        Cl: 0
+        Cm: 0
+        Cn: 0
+        CA: 0
+        CS: 0
+        CN: 0
+
+  body_components:
+    - name: "Body"
+      translation: [0.0, 0.0, 0.0]
+      profile:
+        type: "starship_custom"  # Tells parser to use custom function
+        length: 50.0
+        diameter: 9.0
+        smoothing_factor: 0.002
+        n_points: 100
+      mass_properties:
+        inert_mass: 120000  # Main vehicle bulk mass
+        propellant_mass: 10000
+        com_dry: [24, 0, 0]
+        com_wet: [25, 0, 0]
+        moi_dry: "auto"
+        moi_wet: "auto"
+      aero_scale_factor:
+        Cl: 1.0
+        Cm: 0.4
+        Cn: 0.0
+        CA: 1.0
+        CS: 1.0
+        CN: 1.0
+      aero_smoothing:
+        Cl: 0.0
+        Cm: 0.0
+        Cn: 0.0
+        CA: 0.0
+        CS: 0.0
+        CN: 0.0
+
+  aero_buildup:
+    ref_density: 1.225  # kg/m^3
+    ref_mach: 0.3
+
+  propulsion:
+    type: "radial_cluster"
+    name: "Rocket_Engine"
+    num_engines: 3
+    spacing: 1.0
+    translation: [50.0, 0.0, 0.0]
+    thrust_direction: [1.0, 0.0, 0.0]
+    size: 1.2
+    performance:
+      min_thrust: 400000.0   # Newtons
+      max_thrust: 1000000.0  # Newtons
+      isp: 330.0
+    thrust_dynamics:
+      # First-order system to simulate engine spool-up/spool-down lag.
+      # Transfer function: 1 / (tau * s + 1) -> tau = 0.5 seconds
+      actuator_model:
+        num: [ 1.0 ]
+        den: [ 0.5, 1.0 ]
+      rate_limit: 500000.0
+    gimbal_dynamics:
+      bounds: [ -14.0, 14.0 ]  # Minimum and maximum deflection in degrees
+      axes: "pitch_yaw"      # Specifies TVC operates in two axes
+      actuator_model:
+        num: [ 100.0 ]
+        den: [ 1.0, 14.0, 100.0 ]
+      rate_limit: 40.0      # Maximum gimbal slew rate (degrees per second)
+
+  sensors:
+    - type: "IMU"  # IMU or GNSS
+      name: "Main IMU"
+      translation: [2.0, 0.1, 0.0]  # # Absolute position in meters
+      rotation: [0.0, 0.0, 0.0]     # Mounting rotation (Euler angles in degrees)
+      update_rate: 0.01             # Update rate in seconds
+      accelerometer:
+        measurement_range: 98.1  # max range accelerometer can detect (98.1 m/s^2 = 10 Gs)
+        resolution: 0.0001                        # (m/s^2)/LSB (0 = infinite resolution)
+        constant_bias: [0.1, -0.05, 0.02]         # m/s^2
+        axes_misalignment: [100.0, 100.0, 100.0]  # (100 = perfect alignment)
+
+        # White Noise
+        noise_density: 0.002                      # m/s^2 / sqrt(Hz)
+
+        # Bias Instability (First-Order Gauss-Markov)
+        bias_instability: 0.005               # m/s^2 (Steady-state standard deviation)
+        bias_instability_tau: 100.0           # seconds (Time constant)
+
+        # Random Walk
+        random_walk: 0.00004                  # m/s^2 * sqrt(Hz)
+
+      gyroscope:
+        measurement_range: 8.72               # rad/s
+        resolution: 0.0
+        constant_bias: [0.01, -0.01, 0.005]   # rad/s
+        axes_misalignment: [100.0, 100.0, 100.0]
+
+        # White Noise
+        noise_density: 0.00015                # rad/s / sqrt(Hz)
+
+        # Bias Instability (First-Order Gauss-Markov)
+        bias_instability: 0.0005              # rad/s
+        bias_instability_tau: 100.0           # seconds
+
+        # Random Walk
+        random_walk: 0.000002                 # rad/s * sqrt(Hz)
+
+    - type: "GNSS"
+      name: "Nose_GPS"
+      translation: [ 0.5, 0.0, 0.0 ]      # Antenna mounted near the nose
+      update_rate: 0.2                    # Update rate in seconds
+      position_std: [ 1.5, 1.5, 3.5 ]     # Standard deviation (x, y, z) in meters
+      velocity_std: [ 0.1, 0.1, 0.15 ]    # Standard deviation (x, y, z) in m/s
