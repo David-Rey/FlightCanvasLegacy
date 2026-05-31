@@ -27,13 +27,14 @@ simulation_settings:
     model: "von_karman"                   # Stochastic wind disturbance models: "none", "von_karman"
 
     # Required if model is "von_karman"
-    characteristic_wingspan: 7.0          # Vehicle width/wingspan [meters]
+    characteristic_wingspan: 7.0          # Vehicle width/wingspan [m]
     rms_turbulence_amplitude: 5
 
   wind_vector: [0.0, 0.0, 0.0]            # Constant wind velocity vector [North, East, Down] in ENU world frame [m/s]
 
   sim_noise: false                        # Toggle to globally enable/disable all sensor and actuator noise
   use_true_state: true                    # Bypasses the state estimator and feeds truth directly to the flight controller
+  rng_seed: 42                            # Random seed for stochastic noise
 
 # ==============================================================================
 # VEHICLE DEFINITION (GEOMETRY, MASS, AERO TUNING, SENSORS)
@@ -63,6 +64,7 @@ vehicle:
       actuator_model:                     # Continuous-time transfer function representing servo mechanics
         num: [1.0]                        # Numerator coefficients of G(s)
         den: [0.1, 1.0]                   # Denominator coefficients: [tau, 1] -> G(s) = 1 / (0.1s + 1)
+        initial_state: 0                  # Deflection angle at simulation start (t=0) [degrees]
       mass_properties:                    # Structural mass properties
         inert_mass: 1000                  # Dry mass of the component [kg]
         com: "auto"                       # Center of mass: 'auto' or explicit [x, y, z]
@@ -96,6 +98,7 @@ vehicle:
       actuator_model:
         num: [ 1.0 ]
         den: [ 0.1, 1.0 ]
+        initial_state: 0
       mass_properties:
         inert_mass: 1500
         com: "auto"
@@ -151,15 +154,13 @@ vehicle:
     rotation_type: "ZYX"
     mass_properties:                      # Mass properties of the rocket
       inert_mass: 1000                    # Dry mass of the component [kg]
-
-    performance:
-      min_thrust: 400000.0                # Minimum throttling limit per engine engine [Newtons]
-      max_thrust: 1000000.0               # Maximum throttling limit per engine engine [Newtons]
-      isp: 330.0                          # Specific impulse governing mass consumption via m_dot = Thrust / (Isp * g) [s]
+    isp: 330.0                            # Specific impulse governing mass consumption via m_dot = Thrust / (Isp * g) [s]
     thrust_dynamics:
       actuator_model:                     # Generic SISO blueprint applied to the engine throttle valve
         num: [ 1.0 ]                      # Continuous system simulating engine spool-up/spool-down lag.
         den: [ 0.5, 1.0 ]
+        initial_state: 0
+        bounds: [400000.0, 1000000.0]     # Minimum and Maximum throttling limit per engine [N]
         rate_limit: 500000.0              # Maximum thrust ramp rate [N/s]
         noise_model:
           thrust_noise_percent: 0.005     # High-frequency combustion noise standard deviation scales
@@ -170,10 +171,11 @@ vehicle:
     gimbal_dynamics:
       static_bias: [0.1, -0.05]           # Joint-level mounting/alignment offset error for [pitch, yaw] axes [degrees]
       actuator_model:                     # Generic SISO blueprint instantiated twice (once for pitch, once for yaw)
-        bounds: [ -14.0, 14.0 ]           # Hard deflection limits for gimbal
-        rate_limit: 40.0                  # Maximum servo slew velocity [degrees/s]
         num: [ 100.0 ]
         den: [ 1.0, 14.0, 100.0 ]
+        initial_state: 0
+        bounds: [ -14.0, 14.0 ]           # Hard deflection limits for gimbal
+        rate_limit: 40.0                  # Maximum servo slew velocity [degrees/s]
         noise_model:
           max_thrust_flutter_std: 0.05    # Max structural jitter added at 100% thrust. Scales linearly with throttle ratio [degrees]
           shaping_filter:
