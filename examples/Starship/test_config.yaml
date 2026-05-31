@@ -1,68 +1,92 @@
-
+# ==============================================================================
+# GLOBAL SIMULATION SETTINGS
+# ==============================================================================
 simulation_settings:
-  # Initial state
-  initial_position: [0, 0, 1000]  # ENU frame
-  initial_velocity: [0, 0, -40]   # Velocity in body frame
-  initial_rotation: [0, 0, 0]  # EulerAngles
-  initial_angular_rate: [0, 0, 0] # Always in body
+  # Initial rigid-body states at t = 0
+  initial_position: [0, 0, 1000]          # [x, y, z] Position in East-North-Up (ENU) world frame [m]
+  initial_velocity: [0, 0, -40]           # [u, v, w] Translational velocity in vehicle Body frame [m/s]
+  initial_rotation: [0, 0, 0]             # [roll, pitch, yaw] Euler angles tracking intrinsic rotation [degrees]
+  initial_angular_rate: [0, 0, 0]         # [wx, wy, wz] Rotational velocity in vehicle Body frame [degrees/s]
 
-  # Simulation settings
-  time_step: 0.01  # 100 Hz
-  max_sim_time: 20  # max 20 seconds
-  stop_at_z: 2  # End simulation if position drops below z=2 meters. Set to null if stop is not needed
+  # Core simulation parameters
+  time_step: 0.01                         # Integration step size; 0.01s = 100 Hz rate [s]
+  max_sim_time: 20                        # max simulation runtime [s]
+  stop_at_z: 2                            # Ground threshold to halt sim (set to null if unchecked) [m]
 
-  # Environment
-  wind_model: "none"  # none or static
-  turbulence: "none"
-  density_model: "static" # static or exponential
+  # Environmental physics models
+  density:
+    model: "exponential"                  # Atmospheric density calculation method: "static" or "exponential"
+    density_sea_level: 1.225              # Atmospheric density at ground level [kg/m^3]
 
+    # Required if model is "exponential"
+    scale_height: 8500.0                  # Altitude constant over which density drops by a factor of e [m]
+    temperature_sea_level: 288.15         # Standard reference temperature at sea level [K]
+    lapse_rate: 0.0                       # Tropospheric temperature lapse rate (normally -0.0065) [K/m]
+
+  turbulence:
+    model: "von_karman"                   # Stochastic wind disturbance models: "none", "von_karman"
+
+    # Required if model is "von_karman"
+    characteristic_wingspan: 7.0          # Vehicle width/wingspan [meters]
+    rms_turbulence_amplitude: 5
+
+  wind_vector: [0.0, 0.0, 0.0]            # Constant wind velocity vector [North, East, Down] in ENU world frame [m/s]
+
+  sim_noise: false                        # Toggle to globally enable/disable all sensor and actuator noise
+  use_true_state: true                    # Bypasses the state estimator and feeds truth directly to the flight controller
+
+# ==============================================================================
+# VEHICLE DEFINITION (GEOMETRY, MASS, AERO TUNING, SENSORS)
+# ==============================================================================
 vehicle:
   name: "Starship"
+
+  # Wing components for vehicle
   wing_components:
     # Front Flap
     - name: "Front_Flap"
-      symmetry: "xz-plane"  # 'none', 'xz-plane' or 'x-axial'
-      translation: [5.0, 2.9, 0.0]
-      ref_direction: [ 1.0, 0.18, 0.0 ]
-      control_pivot: [ 1.0, 0.18, 0.0 ]
+      symmetry: "xz-plane"                # Geometry mirroring options: 'none', 'xz-plane', or 'x-axial'
+      translation: [5.0, 2.9, 0.0]        # Reference location relative to vehicle reference point [m]
+      rotation: [0.0, 0.0, 0.0]           # Reference direction component is
+      rotation_type: "ZYX"
+      control_pivot: [1.0, 0.18, 0.0]     # Hinge axis vector around which the surface rotates for control deflection
       airfoil:
-        type: "flat_plate" # airfoil 'flat_plate' or 'NACA'
-        thickness: 0.02
-      xsecs:
-        - xyz_le: [0.0, 0.0, 0.0]
-          chord: 8.0
-        - xyz_le: [6.0, 4.8, 0.0]
-          chord: 2.5
-      actuator_model:
-        num: [ 1.0 ]
-        den: [ 0.1, 1.0 ]
-      mass_properties:
-        inert_mass: 1000
-        com: "auto"
-        moi: "auto"
-      aero_scale_factor:  # Scale a factor on coefficients. This argument is optional and the default value is 1
-        Cl: 1
-        Cm: 1
-        Cn: 1
-        CA: 1
-        CS: 1
-        CN: 1
-      aero_smoothing:
-        Cl: 0
-        Cm: 0
-        Cn: 0
-        CA: 0
-        CS: 0
-        CN: 0
+        type: "flat_plate"                # Cross-sectional lookup profile: 'flat_plate' or 'NACA_xxxx'
+
+        # Required if type is "flat_plate"
+        thickness: 0.02                   # Thickness of flat plate [~]
+      xsecs:                              # Chord distributions defining structural planform geometry
+        - xyz_le: [0.0, 0.0, 0.0]         # Root leading-edge coordinates [m]
+          chord: 8.0                      # Root chord length [m]
+        - xyz_le: [6.0, 4.8, 0.0]         # Tip leading-edge coordinates relative to root [m]
+          chord: 2.5                      # Tip chord length [m]
+      actuator_model:                     # Continuous-time transfer function representing servo mechanics
+        num: [1.0]                        # Numerator coefficients of G(s)
+        den: [0.1, 1.0]                   # Denominator coefficients: [tau, 1] -> G(s) = 1 / (0.1s + 1)
+      mass_properties:                    # Structural mass properties
+        inert_mass: 1000                  # Dry mass of the component [kg]
+        com: "auto"                       # Center of mass: 'auto' or explicit [x, y, z]
+        moi: "auto"                       # Moment of inertia tensor: 'auto' or explicit array
+      aero_scale_factor:                  # Multipliers to alter computed aerodynamic coefficients post-buildup
+        Cl: 1                             # Lift coefficient scalar
+        Cm: 1                             # Pitching moment coefficient scalar
+        Cn: 1                             # Yawing moment coefficient scalar
+        CA: 1                             # Axial force coefficient scalar
+        CS: 1                             # Side force coefficient scalar
+        CN: 1                             # Normal force coefficient scalar
+      aero_smoothing:                     # Gaussian filter sigmas applied to smooth grid lookup data drops
+        {Cl: 0, Cm: 0, Cn: 0,
+         CA: 0, CS: 0, CN: 0}
 
     # Aft Flap
     - name: "Aft_Flap"
-      symmetry: "none"  # 'none', 'xz-plane' or 'x-axial'
+      symmetry: "xz-plane"
       translation: [35.0, 4.5, 0.0]
-      ref_direction: [ 1.0, 0.0, 0.0 ]
+      rotation: [ 0.0, 0.0, 0.0 ]
+      rotation_type: "ZYX"
       control_pivot: [ 1.0, 0.0, 0.0 ]
       airfoil:
-        type: "flat_plate" # airfoil 'flat_plate' or 'NACA'
+        type: "flat_plate"
         thickness: 0.02
       xsecs:
         - xyz_le: [0.0, 0.0, 0.0]
@@ -76,37 +100,27 @@ vehicle:
         inert_mass: 1500
         com: "auto"
         moi: "auto"
-      aero_scale_factor: # Scale a factor on coefficients. This argument is optional and the default value is 1
-        Cl: 1
-        Cm: 1
-        Cn: 1
-        CA: 1
-        CS: 1
-        CN: 1
+      aero_scale_factor:
+        {Cl: 1, Cm: 1, Cn: 1,
+         CA: 1, CS: 1, CN: 1}
       aero_smoothing:
-        Cl: 0
-        Cm: 0
-        Cn: 0
-        CA: 0
-        CS: 0
-        CN: 0
+        {Cl: 0, Cm: 0, Cn: 0,
+         CA: 0, CS: 0, CN: 0}
 
+  # Body components for vehicle
   body_components:
     - name: "Body"
-      translation: [0.0, 0.0, 0.0]
+      translation: [0.0, 0.0, 0.0]        # Reference location relative to vehicle reference point [m]
       profile:
-        type: "starship_custom"  # Tells parser to use custom function
-        length: 50.0
-        diameter: 9.0
-        smoothing_factor: 0.002
-        n_points: 100
+        type: "starship_custom"           # Tells parser to use custom function
+        length: 50.0                      # Total length of the main body [m]
+        diameter: 9.0                     # maximum diameter of body [m]
+        smoothing_factor: 0.002           # Spline parameter
+        n_points: 100                     # Number of discretization points of body
       mass_properties:
         inert_mass: 120000  # Main vehicle bulk mass
-        propellant_mass: 10000
-        com_dry: [24, 0, 0]
-        com_wet: [25, 0, 0]
-        moi_dry: "auto"
-        moi_wet: "auto"
+        com: "auto"                       # Center of mass: 'auto' or explicit [x, y, z]
+        moi: "auto"                       # Moment of inertia tensor: 'auto' or explicit array
       aero_scale_factor:
         Cl: 1.0
         Cm: 0.4
@@ -114,86 +128,98 @@ vehicle:
         CA: 1.0
         CS: 1.0
         CN: 1.0
-      aero_smoothing:
-        Cl: 0.0
-        Cm: 0.0
-        Cn: 0.0
-        CA: 0.0
-        CS: 0.0
-        CN: 0.0
 
+  # Mass components for vehicle
+  mass_components:
+    - name: "Header_tank"
+      translation: [2.0, 0.0, 0.0]        # Center of the mass relative to the vehicle nose [m]
+      mass_properties:
+        inert_mass: 200                   # Structural dry mass of the component [kg]
+        propellant_mass: 1000             # Usable fluid fuel weight inside tanks at t = 0 [kg]
+
+  # Aerodynamic lookup table generation settings
   aero_buildup:
-    ref_density: 1.225  # kg/m^3
-    ref_mach: 0.3
+    ref_altitude: 0                       # Air density used for aerodynamic lookup table. Depends on the density model
+    ref_mach: 0.3                         # Reference mach number used for aerodynamic lookup table
 
   propulsion:
-    type: "radial_cluster"
-    name: "Rocket_Engine"
-    num_engines: 3
-    spacing: 1.0
-    translation: [50.0, 0.0, 0.0]
-    thrust_direction: [1.0, 0.0, 0.0]
-    size: 1.2
+    name: "Rocket Engine"
+    symmetry: "x-axial"                   # Mirroring options: 'none', 'xz-plane', or 'x-axial'
+    num_engines: 3                        # Pattern multiplier required if symmetry is 'x-axial'
+    translation: [50.0, 0.0, 1.0]         # Reference location relative to vehicle reference point [m]
+    rotation: [ 0.0, 0.0, 0.0 ]           # Mounting rotation [degrees]
+    rotation_type: "ZYX"
+    mass_properties:                      # Mass properties of the rocket
+      inert_mass: 1000                    # Dry mass of the component [kg]
+
     performance:
-      min_thrust: 400000.0   # Newtons
-      max_thrust: 1000000.0  # Newtons
-      isp: 330.0
+      min_thrust: 400000.0                # Minimum throttling limit per engine engine [Newtons]
+      max_thrust: 1000000.0               # Maximum throttling limit per engine engine [Newtons]
+      isp: 330.0                          # Specific impulse governing mass consumption via m_dot = Thrust / (Isp * g) [s]
     thrust_dynamics:
-      # First-order system to simulate engine spool-up/spool-down lag.
-      # Transfer function: 1 / (tau * s + 1) -> tau = 0.5 seconds
-      actuator_model:
-        num: [ 1.0 ]
+      actuator_model:                     # Generic SISO blueprint applied to the engine throttle valve
+        num: [ 1.0 ]                      # Continuous system simulating engine spool-up/spool-down lag.
         den: [ 0.5, 1.0 ]
-      rate_limit: 500000.0
+        rate_limit: 500000.0              # Maximum thrust ramp rate [N/s]
+        noise_model:
+          thrust_noise_percent: 0.005     # High-frequency combustion noise standard deviation scales
+          shaping_filter:                 # Noise shaping filter
+            num: [ 10.0 ]
+            den: [ 1.0, 10.0 ]
+
     gimbal_dynamics:
-      bounds: [ -14.0, 14.0 ]  # Minimum and maximum deflection in degrees
-      axes: "pitch_yaw"      # Specifies TVC operates in two axes
-      actuator_model:
+      static_bias: [0.1, -0.05]           # Joint-level mounting/alignment offset error for [pitch, yaw] axes [degrees]
+      actuator_model:                     # Generic SISO blueprint instantiated twice (once for pitch, once for yaw)
+        bounds: [ -14.0, 14.0 ]           # Hard deflection limits for gimbal
+        rate_limit: 40.0                  # Maximum servo slew velocity [degrees/s]
         num: [ 100.0 ]
         den: [ 1.0, 14.0, 100.0 ]
-      rate_limit: 40.0      # Maximum gimbal slew rate (degrees per second)
+        noise_model:
+          max_thrust_flutter_std: 0.05    # Max structural jitter added at 100% thrust. Scales linearly with throttle ratio [degrees]
+          shaping_filter:
+            num: [ 0.0, 50.0, 0.0 ]
+            den: [ 1.0, 5.0, 2500.0 ]
 
   sensors:
     - type: "IMU"  # IMU or GNSS
       name: "Main IMU"
-      translation: [2.0, 0.1, 0.0]  # # Absolute position in meters
-      rotation: [0.0, 0.0, 0.0]     # Mounting rotation (Euler angles in degrees)
-      update_rate: 0.01             # Update rate in seconds
+      translation: [2.0, 0.1, 0.0]        # Hardware mounting lever-arm relative to vehicle origin [m]
+      rotation: [0.0, 0.0, 0.0]           # Mounting rotation [degrees]
+      rotation_type: "ZYX"
+      update_rate: 0.01                   # Update rate in seconds
       accelerometer:
-        measurement_range: 98.1  # max range accelerometer can detect (98.1 m/s^2 = 10 Gs)
-        resolution: 0.0001                        # (m/s^2)/LSB (0 = infinite resolution)
-        constant_bias: [0.1, -0.05, 0.02]         # m/s^2
-        axes_misalignment: [100.0, 100.0, 100.0]  # (100 = perfect alignment)
+        measurement_range: 98.1           # Sensor saturation clip limit [m/s^2] (98.1 m/s^2 = 10 Gs)
+        resolution: 0.0001                        # ADC quantization step size [(m/s^2)/LSB]
+        constant_bias: [0.1, -0.05, 0.02]         # Deterministic turn-on bias
+        axes_misalignment: [100.0, 100.0, 100.0]  # Cross-axis sensitivity [%]
 
-        # White Noise
-        noise_density: 0.002                      # m/s^2 / sqrt(Hz)
-
-        # Bias Instability (First-Order Gauss-Markov)
-        bias_instability: 0.005               # m/s^2 (Steady-state standard deviation)
-        bias_instability_tau: 100.0           # seconds (Time constant)
-
-        # Random Walk
-        random_walk: 0.00004                  # m/s^2 * sqrt(Hz)
+        # Stochastic Allan Variance Error Parameters
+        noise_density: 0.002              # Velocity Random Walk (VRW) / high-frequency white noise [m/s^2 / sqrt(Hz)]
+        bias_instability: 0.005           # In-run flicker noise asymptote (1st-Order Gauss-Markov standard deviation) [m/s^2]
+        bias_instability_tau: 100.0       # Gauss-Markov relaxation correlation time constant [s]
+        random_walk: 0.00004              # Acceleration Random Walk (ARW) / true Brownian drift [(m/s^2) * sqrt(Hz)]
 
       gyroscope:
-        measurement_range: 8.72               # rad/s
-        resolution: 0.0
-        constant_bias: [0.01, -0.01, 0.005]   # rad/s
-        axes_misalignment: [100.0, 100.0, 100.0]
+        measurement_range: 8.72                   # Rotational saturation clip limit [rad/s]
+        resolution: 0.0001                        # ADC quantization step size [(rad/s)/LSB]
+        constant_bias: [0.01, -0.01, 0.005]       # Deterministic turn-on bias
+        axes_misalignment: [100.0, 100.0, 100.0]  # Cross-axis sensitivity [%]
 
-        # White Noise
-        noise_density: 0.00015                # rad/s / sqrt(Hz)
-
-        # Bias Instability (First-Order Gauss-Markov)
-        bias_instability: 0.0005              # rad/s
-        bias_instability_tau: 100.0           # seconds
-
-        # Random Walk
-        random_walk: 0.000002                 # rad/s * sqrt(Hz)
+        # Stochastic Allan Variance Error Parameters
+        noise_density: 0.00015                # Angle Random Walk (ARW) / high-frequency white noise [rad/s / sqrt(Hz)]
+        bias_instability: 0.0005              # In-run flicker noise asymptote (1st-Order Gauss-Markov standard deviation) [rad/s]
+        bias_instability_tau: 100.0           # Gauss-Markov relaxation correlation time constant [s]
+        random_walk: 0.000002                 # Rate Random Walk (RRW) / true Brownian drift [(rad/s) * sqrt(Hz)]
 
     - type: "GNSS"
-      name: "Nose_GPS"
-      translation: [ 0.5, 0.0, 0.0 ]      # Antenna mounted near the nose
-      update_rate: 0.2                    # Update rate in seconds
-      position_std: [ 1.5, 1.5, 3.5 ]     # Standard deviation (x, y, z) in meters
-      velocity_std: [ 0.1, 0.1, 0.15 ]    # Standard deviation (x, y, z) in m/s
+      name: "Nose GPS"
+      translation: [ 0.5, 0.0, 0.0 ]      # Antenna mounted position
+      rotation: [ 0.0, 0.0, 0.0 ]
+      rotation_type: "ZYX"
+      update_rate: 0.2                    # Update rate of GNSS [s]
+      position_std: [ 1.5, 1.5, 3.5 ]     # Standard deviation of position [m]
+      velocity_std: [ 0.1, 0.1, 0.15 ]    # Standard deviation of velocity [m]
+
+control:
+  control_update_rate: 0.02               # Update rate of the flight controller [s]
+
