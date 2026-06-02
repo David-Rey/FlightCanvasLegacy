@@ -279,7 +279,7 @@ class Starship:
         log = Log(state_names, control_names, deflection_names, num_engines, maxSteps)
 
         dt = 0.01
-        tf = 10
+        tf = 20
 
         #z_guess = np.array([-60, 0, np.deg2rad(12)])
         #trim.get_trimpoint(z_guess)
@@ -298,6 +298,7 @@ class Starship:
 
         #initial_state[2] = 800
         #initial_state[11] = 0.001
+
         pos_0 = np.array([0, 0, 1000])  # Initial position
         vel_0 = np.array([0, 0, -60])  # Body velocity
         quat_0 = utils.euler_to_quat((0, 0, 0))
@@ -305,30 +306,31 @@ class Starship:
         initial_state = np.concatenate((pos_0, vel_0, quat_0, omega_0))
 
         controller = StarshipController(self.vehicle.vehicle_dynamics)
+        controller.init_controller(dt)
+
         #controller.draw_wrench_space(initial_state)
-        controller.curve_fit(initial_state)
-        controller.test_moment(initial_state)
-        controller.draw_3d_wrench_space(initial_state)
+        #controller.curve_fit(initial_state)
+        #controller.test_moment(initial_state)
+        #controller.draw_3d_wrench_space(initial_state)
         #controller.init_controller(dt)
         #controller.get_control(initial_state)
-        #controller.debug_control_authority(initial_state, np.array([0, 0, 0]))
 
 
-        #flight = Flight(self.vehicle, controller, tf, dt=dt)
+        flight = Flight(self.vehicle, controller, tf, dt=dt)
 
         #M_b = np.array([0, 3000, 0])
         #con.get_flap_allocation(initial_state, M_b)
 
         #trim.draw_wrench_space(initial_state)
 
-        #flight.run_sim(initial_state, log)
+        flight.run_sim(initial_state, log)
 
-        #analysis = Analysis(log)
-        #analysis.generate_control_plot()
+        analysis = Analysis(log)
+        analysis.generate_control_plot()
         #analysis.generate_velocity_plot(include_vz=False)
         #analysis.generate_position_plot()
-        #analysis.generate_euler_angle_plot()
-        #analysis.generate_angular_velocity_plot()
+        analysis.generate_euler_angle_plot()
+        analysis.generate_angular_velocity_plot()
         #analysis.generate_quat_norm_plot()
         #analysis.generate_angle_of_attack_plot()
         #analysis.generate_true_deflections_plot()
@@ -336,15 +338,17 @@ class Starship:
         #vv = VehicleVisualizer(self.vehicle)
         #vv.init_aero_actors(opacity=1)
         #vv.init_prop_actors(opacity=1, color='grey')
-        #vv.init_debug(size=4)
-        #vv.show()
         #vv.add_grid()
+        #vv.animate(log, cam_distance=80, zoom=1.5)
+
+        #vv.init_debug(size=4)
+
         #self.vehicle.prop_components[0].update_dynamic_transform(initial_state)
 
         #vv.update_actors(initial_state, np.array([0, 0, 0, 0, 0]), np.array([1, 0, 0]))
         #vv.generate_square_traj()
         #vv.show()
-        #vv.animate(log, cam_distance=80, zoom=1.5)
+
 
 if __name__ == '__main__':
     # Create an instance of the entire Starship model

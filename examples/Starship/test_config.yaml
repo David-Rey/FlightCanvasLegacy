@@ -36,6 +36,11 @@ simulation_settings:
   use_true_state: true                    # Bypasses the state estimator and feeds truth directly to the flight controller
   rng_seed: 42                            # Random seed for stochastic noise
 
+  logging:
+    enable_logging: true
+    output_dir: "./logs/sim_runs/"        # Directory to save the CSV/Parquet files
+    file_prefix: "starship_6dof_"         # Prefix for the generated timestamped file
+
 # ==============================================================================
 # VEHICLE DEFINITION (GEOMETRY, MASS, AERO TUNING, SENSORS)
 # ==============================================================================
@@ -138,7 +143,7 @@ vehicle:
       translation: [2.0, 0.0, 0.0]        # Center of the mass relative to the vehicle nose [m]
       mass_properties:
         inert_mass: 200                   # Structural dry mass of the component [kg]
-        propellant_mass: 1000             # Usable fluid fuel weight inside tanks at t = 0 [kg]
+        propellant_mass: 2000             # Usable fluid fuel weight inside tanks [kg]
 
   # Aerodynamic lookup table generation settings
   aero_buildup:
